@@ -80,7 +80,8 @@ export async function fetchRepositoryData(fullName: string): Promise<Repository 
     const response = await fetchWithRetry(`${GITHUB_API_BASE}/repos/${fullName}`)
     
     if (!response.ok) {
-      console.error(`Failed to fetch ${fullName}:`, response.status)
+      const errorText = await response.text().catch(() => 'Unknown error')
+      console.error(`Failed to fetch repository ${fullName}: (${response.status}) ${errorText}`)
       return null
     }
     

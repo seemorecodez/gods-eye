@@ -21,9 +21,18 @@ function App() {
   useEffect(() => {
     async function loadRepositories() {
       setLoading(true)
-      const repos = await fetchAllRepositories()
-      setRepositories(repos)
-      setLoading(false)
+      try {
+        const repos = await fetchAllRepositories()
+        if (repos.length === 0) {
+          console.warn('No repositories could be loaded - possible API rate limit')
+        }
+        setRepositories(repos)
+      } catch (error) {
+        console.error('Error loading repositories:', error)
+        setRepositories([])
+      } finally {
+        setLoading(false)
+      }
     }
     loadRepositories()
   }, [])
