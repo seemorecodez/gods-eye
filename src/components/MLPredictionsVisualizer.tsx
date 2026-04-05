@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
-import { Brain, Spinner, Target, FileText, Globe, Shield, Clock, Image } from '@phosphor-icons/react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Repository, MLPrediction } from '@/lib/types'
+import { Badge } from '@/components/ui/badge'
+import { Brain, Spinner, Target, FileText, Globe, Shield } from '@phosphor-icons/react'
+import { motion } from 'framer-motion'
+import { Repository } from '@/lib/types'
 import { fetchAllRepositories } from '@/lib/github-api'
 import { toast } from 'sonner'
 
@@ -40,21 +39,6 @@ interface IntelligenceBriefing {
   timestamp: Date
 }
 
-const ML_MODELS = [
-  'YOLOv8-Object-Detection',
-  'Change-Detection-CNN',
-  'Conflict-Predictor-LSTM',
-  'Sentinel-Classifier-ResNet',
-  'Infrastructure-Monitor-UNet',
-  'Damage-Assessment-VGG',
-  'Population-Density-GAN',
-  'Terrain-Classifier-AlexNet',
-  'Vehicle-Counter-RCNN',
-  'Building-Footprint-SegNet',
-  'Crowd-Analyzer-YOLO',
-  'Smoke-Detection-MobileNet'
-]
-
 const LOCATIONS = [
   'Damascus, Syria',
   'Khartoum, Sudan',
@@ -68,30 +52,10 @@ const LOCATIONS = [
   'Mogadishu, Somalia'
 ]
 
-const OBJECTS = [
-  'Military Vehicle',
-  'Tank',
-  'APC',
-  'Artillery Position',
-  'Building Complex',
-  'Infrastructure',
-  'Destroyed Structure',
-  'Convoy',
-  'Checkpoint',
-  'Encampment',
-  'Aircraft',
-  'Helicopter',
-  'Supply Depot',
-  'Fortification',
-  'Refugee Camp',
-  'Medical Facility'
-]
-
 export function MLPredictionsVisualizer() {
   const [activeTab, setActiveTab] = useState<'threat' | 'satellite' | 'briefing'>('threat')
   const [loading, setLoading] = useState(false)
   const [repositories, setRepositories] = useState<Repository[]>([])
-  const [predictions, setPredictions] = useState<MLPrediction[]>([])
   const [threatAnalyses, setThreatAnalyses] = useState<ThreatAnalysis[]>([])
   const [satelliteAnalyses, setSatelliteAnalyses] = useState<SatelliteAnalysis[]>([])
   const [briefings, setBriefings] = useState<IntelligenceBriefing[]>([])
@@ -102,38 +66,7 @@ export function MLPredictionsVisualizer() {
       setRepositories(repos)
     }
     loadRepos()
-
-    const interval = setInterval(() => {
-      if (Math.random() > 0.7) {
-        addPrediction()
-      }
-    }, 3000)
-
-    return () => clearInterval(interval)
   }, [])
-
-  const addPrediction = () => {
-    const model = ML_MODELS[Math.floor(Math.random() * ML_MODELS.length)]
-    const location = LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)]
-    const objects = Math.floor(Math.random() * 15) + 1
-
-    const prediction: MLPrediction = {
-      id: Date.now().toString(),
-      modelName: model,
-      inputType: `Satellite imagery - ${location}`,
-      prediction: `Detected ${objects} object(s) of interest`,
-      confidence: 0.65 + Math.random() * 0.34,
-      timestamp: new Date(),
-      metadata: {
-        processingTime: Math.floor(Math.random() * 500) + 100,
-        imageSize: '2048x2048',
-        objectsDetected: objects,
-        modelVersion: 'v' + (Math.floor(Math.random() * 3) + 1) + '.' + Math.floor(Math.random() * 10)
-      }
-    }
-
-    setPredictions(prev => [prediction, ...prev].slice(0, 20))
-  }
 
   const generateThreatAnalysis = async () => {
     setLoading(true)
@@ -251,18 +184,6 @@ Make it professional and strategic.`
     }
   }
 
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.9) return 'text-green-400'
-    if (confidence >= 0.75) return 'text-yellow-400'
-    return 'text-orange-400'
-  }
-
-  const getConfidenceBgColor = (confidence: number) => {
-    if (confidence >= 0.9) return 'bg-green-400'
-    if (confidence >= 0.75) return 'bg-yellow-400'
-    return 'bg-orange-400'
-  }
-
   const getThreatColor = (level: ThreatAnalysis['threatLevel']) => {
     switch (level) {
       case 'CRITICAL': return 'bg-red-500'
@@ -280,142 +201,77 @@ Make it professional and strategic.`
     return `${Math.floor(seconds / 3600)}h ago`
   }
 
+  const totalAnalyses = threatAnalyses.length + satelliteAnalyses.length + briefings.length
+  const avgConfidence = threatAnalyses.length > 0 
+    ? (threatAnalyses.reduce((sum, a) => sum + a.confidence, 0) / threatAnalyses.length * 100).toFixed(1)
+    : '0'
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-foreground mb-2">ML PREDICTION STREAM</h2>
-          <p className="text-sm text-muted-foreground">Real-time machine learning inference results with confidence scores</p>
+          <h2 className="text-2xl font-bold text-foreground mb-2">AI-POWERED INTELLIGENCE ANALYSIS</h2>
+          <p className="text-sm text-muted-foreground">Three AI capabilities for comprehensive geospatial intelligence</p>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Brain size={16} className="text-accent animate-pulse" weight="fill" />
-          <span>Live predictions</span>
+          <span>AI-Driven Analysis</span>
         </div>
       </div>
 
-      <ScrollArea className="h-[300px] rounded-lg border border-border bg-card">
-        <div className="p-4 space-y-3">
-          {predictions.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Brain size={48} className="mx-auto mb-2 opacity-50" />
-              <p className="text-sm">Waiting for ML predictions...</p>
-            </div>
-          ) : (
-            <AnimatePresence mode="popLayout">
-              {predictions.map((prediction, index) => (
-                <motion.div
-                  key={prediction.id}
-                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.2, delay: index * 0.015 }}
-                >
-                  <Card className="p-4 hover:bg-muted/50 transition-colors border border-border/50">
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3 flex-1">
-                          <div className="mt-1">
-                            <Target size={20} className="text-accent" weight="bold" />
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                              <Badge variant="outline" className="font-mono text-xs">
-                                {prediction.modelName}
-                              </Badge>
-                              <Badge variant="secondary" className="font-mono text-xs">
-                                {prediction.metadata.modelVersion}
-                              </Badge>
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground ml-auto">
-                                <Clock size={14} />
-                                {formatTimeAgo(prediction.timestamp)}
-                              </div>
-                            </div>
-                            
-                            <p className="text-sm text-foreground font-medium mb-1">
-                              {prediction.inputType}
-                            </p>
-                            
-                            <p className="text-xs text-muted-foreground mb-2">
-                              {prediction.prediction}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Confidence Score</span>
-                          <span className={`font-bold font-mono ${getConfidenceColor(prediction.confidence)}`}>
-                            {(prediction.confidence * 100).toFixed(1)}%
-                          </span>
-                        </div>
-                        <div className="relative">
-                          <Progress 
-                            value={prediction.confidence * 100} 
-                            className="h-2"
-                          />
-                          <div 
-                            className={`absolute top-0 left-0 h-2 rounded-full transition-all ${getConfidenceBgColor(prediction.confidence)}`}
-                            style={{ width: `${prediction.confidence * 100}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t border-border/50">
-                        <span className="flex items-center gap-1">
-                          <Image size={12} />
-                          {prediction.metadata.imageSize}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Target size={12} />
-                          {prediction.metadata.objectsDetected} objects
-                        </span>
-                        <span className="font-mono">
-                          {prediction.metadata.processingTime}ms
-                        </span>
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          )}
-        </div>
-      </ScrollArea>
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4 border border-border/50">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground">Active Models</span>
-            <Badge variant="outline" className="text-accent border-accent">
-              {ML_MODELS.length}
-            </Badge>
+        <Card className="p-5 border border-border/50 bg-card hover:bg-muted/30 transition-colors">
+          <div className="flex items-center gap-3 mb-3">
+            <Shield size={24} className="text-accent" weight="fill" />
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Threat Analysis</h3>
+              <p className="text-xs text-muted-foreground">AI threat assessment</p>
+            </div>
           </div>
-          <p className="text-2xl font-bold text-foreground">{ML_MODELS.length}</p>
+          <div className="text-2xl font-bold text-accent mb-1">{threatAnalyses.length}</div>
+          <p className="text-xs text-muted-foreground">Analyses generated</p>
         </Card>
 
+        <Card className="p-5 border border-border/50 bg-card hover:bg-muted/30 transition-colors">
+          <div className="flex items-center gap-3 mb-3">
+            <Globe size={24} className="text-accent" weight="fill" />
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Satellite Intel</h3>
+              <p className="text-xs text-muted-foreground">YOLOv8 detection</p>
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-accent mb-1">{satelliteAnalyses.length}</div>
+          <p className="text-xs text-muted-foreground">Imagery analyzed</p>
+        </Card>
+
+        <Card className="p-5 border border-border/50 bg-card hover:bg-muted/30 transition-colors">
+          <div className="flex items-center gap-3 mb-3">
+            <FileText size={24} className="text-accent" weight="fill" />
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Strategic Briefing</h3>
+              <p className="text-xs text-muted-foreground">Executive analysis</p>
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-accent mb-1">{briefings.length}</div>
+          <p className="text-xs text-muted-foreground">Briefings created</p>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="p-4 border border-border/50">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground">Predictions</span>
-            <Badge variant="outline" className="text-accent border-accent">
-              {predictions.length}
-            </Badge>
+            <span className="text-xs text-muted-foreground">Total AI Analyses</span>
+            <Brain size={16} className="text-accent" weight="fill" />
           </div>
-          <p className="text-2xl font-bold text-foreground">{predictions.length}</p>
+          <p className="text-2xl font-bold text-foreground">{totalAnalyses}</p>
         </Card>
 
         <Card className="p-4 border border-border/50">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-muted-foreground">Avg Confidence</span>
-            <Brain size={16} className="text-accent" weight="fill" />
+            <Target size={16} className="text-accent" weight="bold" />
           </div>
-          <p className="text-2xl font-bold text-foreground">
-            {predictions.length > 0 
-              ? ((predictions.reduce((sum, p) => sum + p.confidence, 0) / predictions.length) * 100).toFixed(1) + '%'
-              : '0%'
-            }
-          </p>
+          <p className="text-2xl font-bold text-foreground">{avgConfidence}%</p>
         </Card>
       </div>
 
