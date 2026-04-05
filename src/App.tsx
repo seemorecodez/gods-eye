@@ -14,12 +14,18 @@ import { EmergentPatternDetection } from '@/components/EmergentPatternDetection'
 import { AlertNotifications } from '@/components/AlertNotifications'
 import { ThreatAlertManagement } from '@/components/ThreatAlertManagement'
 import { APIMonitoringDashboard } from '@/components/APIMonitoringDashboard'
+import { AdvancedDataVisualization } from '@/components/AdvancedDataVisualization'
+import { RefreshSettingsPanel } from '@/components/RefreshSettingsPanel'
+import { RoleManagementPanel } from '@/components/RoleManagementPanel'
 import { ViewMode, Repository } from '@/lib/types'
 import { fetchAllRepositories } from '@/lib/github-api'
 import { dataSources } from '@/lib/data'
 import { useHealthMonitor } from '@/hooks/use-health-monitor'
 import { useAuth } from '@/hooks/use-auth'
-import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner, GitCommit, Brain, Network, Bell, ChartBar, User } from '@phosphor-icons/react'
+import { useAutoRefresh } from '@/hooks/use-auto-refresh'
+import { usePermissions } from '@/hooks/use-permissions'
+import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner, GitCommit, Brain, Network, Bell, ChartBar, User, Gear, ArrowsClockwise, ShieldCheck } from '@phosphor-icons/react'
+import { Badge } from '@/components/ui/badge'
 
 function App() {
   const [activeView, setActiveView] = useState<ViewMode>('stack')
@@ -28,6 +34,25 @@ function App() {
   
   const { alerts, healthStatuses, acknowledgeAlert, acknowledgeAllAlerts } = useHealthMonitor(dataSources)
   const { session, isLoading: authLoading } = useAuth()
+  const { canAccessView, hasPermission, userRole } = usePermissions()
+
+  const loadRepositories = async () => {
+    setLoading(true)
+    try {
+      const repos = await fetchAllRepositories()
+      if (repos.length === 0) {
+        console.warn('No repositories could be loaded - possible API rate limit')
+      }
+      setRepositories(repos)
+    } catch (error) {
+      console.error('Error loading repositories:', error)
+      setRepositories([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useAutoRefresh('repositories', loadRepositories)
 
   useEffect(() => {
     if (alerts.length > 0) {
@@ -48,25 +73,6 @@ function App() {
       }
     }
   }, [alerts])
-
-  useEffect(() => {
-    async function loadRepositories() {
-      setLoading(true)
-      try {
-        const repos = await fetchAllRepositories()
-        if (repos.length === 0) {
-          console.warn('No repositories could be loaded - possible API rate limit')
-        }
-        setRepositories(repos)
-      } catch (error) {
-        console.error('Error loading repositories:', error)
-        setRepositories([])
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadRepositories()
-  }, [])
 
   const dataRepos = repositories.filter(r => r.category === 'data')
   const aiRepos = repositories.filter(r => r.category === 'ai')
@@ -90,7 +96,12 @@ function App() {
             {session && (
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-sm font-medium text-foreground">{session.login}</div>
+                  <div className="text-sm font-medium text-foreground flex items-center gap-2 justify-end">
+                    {session.login}
+                    <Badge variant={session.role === 'admin' ? 'default' : 'secondary'} className="text-xs">
+                      {session.role}
+                    </Badge>
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     Last login: {new Date(session.lastLogin).toLocaleString()}
                   </div>
@@ -104,46 +115,82 @@ function App() {
 
         <Tabs value={activeView} onValueChange={(v) => setActiveView(v as ViewMode)} className="space-y-6">
           <TabsList className="bg-card border border-border p-1">
-            <TabsTrigger value="stack" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
-              <Stack size={18} className="mr-2" />
-              Stack
-            </TabsTrigger>
-            <TabsTrigger value="monitor" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
-              <Database size={18} className="mr-2" />
-              Monitor
-            </TabsTrigger>
-            <TabsTrigger value="pipeline" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
-              <GitBranch size={18} className="mr-2" />
-              Pipeline
-            </TabsTrigger>
-            <TabsTrigger value="activity" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
-              <GitCommit size={18} className="mr-2" />
-              Activity
-            </TabsTrigger>
-            <TabsTrigger value="ml-predictions" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
-              <Brain size={18} className="mr-2" />
-              ML Predictions
-            </TabsTrigger>
-            <TabsTrigger value="emergent-patterns" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
-              <Network size={18} className="mr-2" />
-              Emergent Patterns
-            </TabsTrigger>
-            <TabsTrigger value="threat-alerts" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
-              <Bell size={18} className="mr-2" />
-              Threat Alerts
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+            {canAccessView('stack') && (
+              <TabsTrigger value="stack" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                <Stack size={18} className="mr-2" />
+                Stack
+              </TabsTrigger>
+            )}
+            {canAccessView('monitor') && (
+              <TabsTrigger value="monitor" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                <Database size={18} className="mr-2" />
+                Monitor
+              </TabsTrigger>
+            )}
+            {canAccessView('pipeline') && (
+              <TabsTrigger value="pipeline" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                <GitBranch size={18} className="mr-2" />
+                Pipeline
+              </TabsTrigger>
+            )}
+            {canAccessView('activity') && (
+              <TabsTrigger value="activity" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                <GitCommit size={18} className="mr-2" />
+                Activity
+              </TabsTrigger>
+            )}
+            {canAccessView('ml-predictions') && (
+              <TabsTrigger value="ml-predictions" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                <Brain size={18} className="mr-2" />
+                ML Predictions
+              </TabsTrigger>
+            )}
+            {canAccessView('emergent-patterns') && (
+              <TabsTrigger value="emergent-patterns" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                <Network size={18} className="mr-2" />
+                Emergent Patterns
+              </TabsTrigger>
+            )}
+            {canAccessView('threat-alerts') && (
+              <TabsTrigger value="threat-alerts" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                <Bell size={18} className="mr-2" />
+                Threat Alerts
+              </TabsTrigger>
+            )}
+            {canAccessView('analytics') && (
+              <TabsTrigger value="analytics" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                <ChartBar size={18} className="mr-2" />
+                Analytics
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="visualizations" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
               <ChartBar size={18} className="mr-2" />
-              Analytics
+              Data Viz
             </TabsTrigger>
-            <TabsTrigger value="map" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
-              <Globe size={18} className="mr-2" />
-              Collab Map
-            </TabsTrigger>
-            <TabsTrigger value="guide" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
-              <BookOpen size={18} className="mr-2" />
-              Guide
-            </TabsTrigger>
+            {canAccessView('map') && (
+              <TabsTrigger value="map" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                <Globe size={18} className="mr-2" />
+                Collab Map
+              </TabsTrigger>
+            )}
+            {hasPermission('configure:refresh') && (
+              <TabsTrigger value="refresh-settings" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                <ArrowsClockwise size={18} className="mr-2" />
+                Refresh
+              </TabsTrigger>
+            )}
+            {hasPermission('manage:users') && (
+              <TabsTrigger value="roles" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                <ShieldCheck size={18} className="mr-2" />
+                Roles
+              </TabsTrigger>
+            )}
+            {canAccessView('guide') && (
+              <TabsTrigger value="guide" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                <BookOpen size={18} className="mr-2" />
+                Guide
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="stack" className="space-y-6">
@@ -258,6 +305,18 @@ function App() {
               </p>
               <APIMonitoringDashboard />
             </div>
+          </TabsContent>
+
+          <TabsContent value="visualizations" className="space-y-6">
+            <AdvancedDataVisualization />
+          </TabsContent>
+
+          <TabsContent value="refresh-settings" className="space-y-6">
+            <RefreshSettingsPanel />
+          </TabsContent>
+
+          <TabsContent value="roles" className="space-y-6">
+            <RoleManagementPanel />
           </TabsContent>
 
           <TabsContent value="map" className="space-y-6">

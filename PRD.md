@@ -82,6 +82,27 @@ This platform integrates multiple data sources, AI processing layers, real-time 
 - **Progression**: User opens emergent patterns view → Sees multi-domain data fusion overview → Clicks "Detect Emergent Pattern" → AI analyzes 3-5 domains simultaneously → System generates correlation chain with probability score → User reviews fusion logic showing step-by-step how domains connect → Reads actionable intelligence recommendation → Retrains model with "Retrain Model" button to improve accuracy → Filters patterns by region and confidence threshold
 - **Success criteria**: Each pattern shows specific correlations (e.g., "Port congestion + fertilizer shortage + ethnic polarization = 78% probability of violence within 60 days"), fusion chain explains domain interconnections, model retraining improves accuracy scores, all patterns persist across sessions with useKV, confidence and probability scores displayed prominently, patterns include realistic data from Sentinel-2, Landsat, ISS, ADS-B Exchange, AIS, Censored Planet, IODA, UN Comtrade, CHIRPS, MODIS, GDELT, and ACLED sources
 
+### Real-Time Data Refresh System
+- **Functionality**: Configurable automatic refresh intervals for all data sources including repositories, data source status, commit activity, ML predictions, camera feeds, weather data, threat alerts, emergent patterns, and API metrics with granular control over each source
+- **Purpose**: Ensure platform displays most current intelligence data without manual intervention while allowing fine-tuned control over refresh frequency and system load
+- **Trigger**: Automatic refresh on configured intervals, manual refresh via buttons, configuration accessible via "Refresh" settings tab
+- **Progression**: System auto-refreshes data at configured intervals → User navigates to Refresh Settings → Adjusts individual refresh intervals using sliders (15s to 10m) → Toggles data sources on/off → Views last refresh timestamps → Pauses/resumes all refreshes → Resets to defaults → Changes persist across sessions
+- **Success criteria**: Each data type refreshes independently at configured intervals, refresh settings persist using useKV, visual indicators show last refresh time and active status, pause/resume affects all sources, admin users can configure intervals, non-admin users see current settings but cannot modify
+
+### Advanced Data Visualization Dashboard
+- **Functionality**: Comprehensive analytics dashboard with interactive charts including time series trends, category distributions, language popularity, repository activity radar, size/popularity correlations using area charts, bar charts, pie charts, line charts, radar charts, and scatter plots
+- **Purpose**: Provide deep analytical insights into repository metrics, commit patterns, and ecosystem trends through rich visualizations that reveal patterns not visible in raw data
+- **Trigger**: Accessible via "Data Viz" navigation tab, auto-refreshes based on repository refresh interval
+- **Progression**: User navigates to Data Viz → Selects visualization type (Trends/Distributions/Comparisons) → Views interactive charts → Hovers for detailed tooltips → Manually refreshes data → Exports chart data → Analyzes trends over time → Compares metrics across categories
+- **Success criteria**: All charts render with live GitHub API data, tooltips show precise values, charts update when data refreshes, responsive design works on all screen sizes, color coding matches platform theme, data points are interactive and labeled clearly
+
+### User Roles & Permissions System
+- **Functionality**: Role-based access control (RBAC) with four role tiers (Viewer, Operator, Analyst, Admin) each with specific permission sets controlling access to views, data operations, ML model execution, exports, threat management, camera management, user administration, and settings configuration
+- **Purpose**: Secure platform access by ensuring users can only perform actions appropriate to their role level, preventing unauthorized modifications while enabling collaboration
+- **Trigger**: Role assignment on user authentication, role management accessible via "Roles" tab for admin users
+- **Progression**: User authenticates → System assigns role based on isOwner status or stored preference → Role determines visible tabs and available actions → Admin navigates to Roles tab → Selects user role from dropdown → Views detailed permission breakdown → Understands permission categories (data/ai/map/export/admin) → Role change persists across sessions
+- **Success criteria**: Four distinct roles with hierarchical permissions (Viewer < Operator < Analyst < Admin), permission checks enforced on all protected actions, tabs hidden based on role permissions, role badge displayed in header, role changes persist with useKV, admin can view all permissions by category, permission descriptions clearly explain access levels, isOwner users default to admin role
+
 ## Edge Case Handling
 
 - **No Active Data Sources**: Display prominent empty state with instructions to configure API keys and data connections, show example data mode toggle

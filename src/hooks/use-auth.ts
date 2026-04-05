@@ -1,5 +1,6 @@
 import { useKV } from '@github/spark/hooks'
 import { useEffect, useState } from 'react'
+import { UserRole } from '@/lib/roles'
 
 export interface UserSession {
   userId: number
@@ -7,6 +8,7 @@ export interface UserSession {
   avatarUrl: string
   email: string
   isOwner: boolean
+  role: UserRole
   lastLogin: number
   preferences: {
     defaultView: string
@@ -39,6 +41,7 @@ export function useAuth() {
               avatarUrl: user.avatarUrl,
               email: user.email,
               isOwner: user.isOwner,
+              role: user.isOwner ? ('admin' as UserRole) : ('viewer' as UserRole),
               lastLogin: Date.now(),
               preferences: {
                 defaultView: 'stack',
@@ -51,6 +54,7 @@ export function useAuth() {
           } else {
             return {
               ...currentSession,
+              role: currentSession.role || (user.isOwner ? ('admin' as UserRole) : ('viewer' as UserRole)),
               lastLogin: Date.now()
             }
           }
@@ -78,6 +82,16 @@ export function useAuth() {
     })
   }
 
+  const updateRole = (role: UserRole) => {
+    setSession((currentSession) => {
+      if (!currentSession) return null
+      return {
+        ...currentSession,
+        role
+      }
+    })
+  }
+
   const logout = () => {
     setSession(null)
   }
@@ -87,6 +101,7 @@ export function useAuth() {
     isLoading,
     isAuthenticated: !!session,
     updatePreferences,
+    updateRole,
     logout
   }
 }
