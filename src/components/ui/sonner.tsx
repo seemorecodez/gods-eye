@@ -1,15 +1,15 @@
 import { CSSProperties } from "react"
 import { Toaster as Sonner, ToasterProps } from "sonner"
 
-const Toaster = ({ ...props }: ToasterProps) => {
-  return (
     <Sonner
-      theme="dark"
-      className="toaster group"
-      style={
+      clas
         {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
+          "--norma
+        } as CSSProperties
+      {...pro
+  )
+
+
           "--normal-border": "var(--border)",
         } as CSSProperties
       }
