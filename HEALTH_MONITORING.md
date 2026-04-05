@@ -1,19 +1,19 @@
 # Health Monitoring System
 
-## Overview
+The God's E
 
 The God's Eye platform now includes a comprehensive health monitoring system that automatically detects when data sources go offline, tracks sync times, and implements intelligent reconnection logic with exponential backoff.
 
 ## Features
 
-### 1. Automatic Health Monitoring
-- **Continuous Health Checks**: Every data source is monitored every 30 seconds
-- **Real-time Status Updates**: Health status updates reflect in the UI within 5 seconds
-- **GitHub API Validation**: Each health check validates the repository is accessible via GitHub API
 
-### 2. Alert Notifications
 - **Instant Toast Notifications**: Pop-up alerts for critical events
-- **Alert Dashboard**: Dedicated alert panel in the Monitor tab
+- **Alert Types**:
+  - 🟡 **DEGRADED**: Data source experiencing issues
+
+### 3. Exponential Backoff
+- **Exponential Growth**: Each retry doubles the wait time (1s → 2s 
+- **Max Attempts**: Up to 10 reconnection attempts before marki
 - **Alert Types**:
   - 🔴 **OFFLINE**: Data source is unreachable
   - 🟡 **DEGRADED**: Data source experiencing issues
@@ -62,114 +62,114 @@ Shows:
 - Real-time health status
 - Reconnection progress bar
 - Next retry countdown
-- Performance metrics
+### Monitoring Interv
 
-## Configuration
 
-### Thresholds
+
 ```typescript
-SYNC_THRESHOLD_MS = 5 * 60 * 1000        // 5 minutes
-MAX_RETRY_ATTEMPTS = 10                   // Maximum reconnection attempts
-INITIAL_BACKOFF_MS = 1000                 // 1 second initial backoff
-MAX_BACKOFF_MS = 5 * 60 * 1000           // 5 minutes maximum backoff
-```
-
-### Monitoring Intervals
-- Health checks: Every 30 seconds
-- Status updates: Every 5 seconds
-- Metrics refresh: Every 2 seconds
-
-## Usage
-
-### In Components
-```typescript
-import { useHealthMonitor } from '@/hooks/use-health-monitor'
-import { dataSources } from '@/lib/data'
-
+import { data
 function MyComponent() {
-  const { alerts, healthStatuses, acknowledgeAlert } = useHealthMonitor(dataSources)
   
-  return (
     <div>
-      {alerts.length > 0 && (
         <AlertNotifications 
-          alerts={alerts}
-          onAcknowledge={acknowledgeAlert}
-        />
-      )}
-    </div>
+   
+
   )
-}
 ```
-
 ### Direct API Usage
-```typescript
-import { healthMonitor } from '@/lib/health-monitor'
+import { healthMonitor } from '@/l
 
-// Start monitoring a data source
-healthMonitor.startMonitoring(dataSource, 30000)
 
-// Get health metrics
-const metrics = healthMonitor.getMetrics(dataSourceId)
 
-// Get reconnection status
-const status = healthMonitor.getReconnectionStatus(dataSourceId)
+// Get reconnecti
 
-// Listen for alert changes
-const unsubscribe = healthMonitor.onAlertsChanged((alerts) => {
-  console.log('New alerts:', alerts)
+const unsubscribe = healthMonitor.onAlertsChanged((alerts) =>
 })
-```
 
-## Health Status Levels
 
-### 🟢 Active (Green)
 - Success rate: > 60%
-- All systems operational
-- Pulsing indicator animation
+- 
+### 🟡 War
+- Experie
 
-### 🟡 Warning (Orange)
-- Success rate: 40-60%
-- Experiencing intermittent issues
-- Steady indicator
-
-### 🔴 Critical (Red)
 - Success rate: < 40%
-- Offline or severely degraded
-- Reconnection attempts in progress
-
+- Reconnection attempts i
 ## Exponential Backoff Strategy
+The system
+| Attemp
+| 1       
+| 3
+|
+| 7
 
-The system uses exponential backoff to avoid overwhelming failing services:
 
-| Attempt | Wait Time | Cumulative Wait |
-|---------|-----------|-----------------|
-| 1       | 1s        | 1s              |
-| 2       | 2s        | 3s              |
-| 3       | 4s        | 7s              |
-| 4       | 8s        | 15s             |
-| 5       | 16s       | 31s             |
-| 6       | 32s       | 1m 3s           |
-| 7       | 1m 4s     | 2m 7s           |
-| 8       | 2m 8s     | 4m 15s          |
-| 9       | 5m        | 9m 15s          |
-| 10      | 5m        | 14m 15s         |
 
-## Data Source Status
 
-All data sources are now online and actively monitored:
 
-- ✅ **ACLED Conflict Events** - Active
-- ✅ **Sentinel-2 Imagery** - Active
-- ✅ **Google Earth Engine** - Active (previously degraded, now fixed)
-- ✅ **OSINT COVID-19 Pattern** - Active
-- ✅ **Conflict Analysis DB** - Active (previously offline, now fixed)
+- ✅ **OSINT COVID-19 Pattern** - 
 
-## Future Enhancements
 
-- [ ] Historical health trend graphs
-- [ ] Custom alert webhooks
-- [ ] Configurable thresholds per data source
+- [ ] Custom alert we
 - [ ] Email/SMS alert delivery
-- [ ] Health check scheduling customization
-- [ ] Automated incident reports
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
