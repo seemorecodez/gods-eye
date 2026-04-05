@@ -1,17 +1,17 @@
 import { CameraFeed } from './types'
 
-  name: string
-  lng: numbe
+export interface SatellitePass {
+  id: string
   name: string
   lat: number
   lng: number
   altitude: number
+  velocity: number
+  nextPass: Date
+  status: 'active' | 'inactive'
+  type: 'earth-observation' | 'weather'
   noradId?: string
-
-  { name: 'Sentinel-2A', noradI
-  { name: 'Landsat 8', noradId: '39084', type: 'earth-observation' as 
-  { name: 'Terra (
- 
+}
 
 const REAL_SATELLITES = [
   { name: 'Sentinel-2A', noradId: '40697', type: 'earth-observation' as const, orbitAlt: 786 },
@@ -82,8 +82,3 @@ export async function generateSatelliteImageryFeeds(): Promise<CameraFeed[]> {
     thumbnail: `https://earthobservatory.nasa.gov/ContentWOC/images/decadal/`
   }))
 }
-
-      id: `sat-${sat.noradId}`,      name: sat.name,      lat: position.lat,      lng: position.lng,      altitude: sat.orbitAlt,      velocity: position.velocity,      nextPass,
-      status: 'active',
-      type: sat.type,
-      noradId: sat.noradId
