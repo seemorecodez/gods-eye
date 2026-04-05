@@ -1,17 +1,17 @@
 import { CameraFeed } from './types'
 
-export interface SatellitePass {
-  id: string
   name: string
-  lat: number
-  lng: number
-  altitude: number
+  lng: numbe
+  velocity: nu
+  status: 'ac
+  noradId?: s
+
   velocity: number
   nextPass: Date
   status: 'active' | 'inactive'
   type: 'earth-observation' | 'weather' | 'communication' | 'military'
   noradId?: string
-}
+ 
 
 const REAL_SATELLITES = [
   { name: 'Sentinel-2A', noradId: '40697', type: 'earth-observation' as const, orbitAlt: 786 },
@@ -30,38 +30,38 @@ const REAL_SATELLITES = [
   { name: 'Suomi NPP', noradId: '37849', type: 'earth-observation' as const, orbitAlt: 824 },
   { name: 'WorldView-3', noradId: '40115', type: 'earth-observation' as const, orbitAlt: 617 },
   { name: 'WorldView-4', noradId: '41848', type: 'earth-observation' as const, orbitAlt: 617 },
-  { name: 'GeoEye-1', noradId: '33331', type: 'earth-observation' as const, orbitAlt: 681 },
-  { name: 'Pleiades 1A', noradId: '38012', type: 'earth-observation' as const, orbitAlt: 694 },
-  { name: 'Pleiades 1B', noradId: '39019', type: 'earth-observation' as const, orbitAlt: 694 },
-  { name: 'SPOT 6', noradId: '38755', type: 'earth-observation' as const, orbitAlt: 694 },
-  { name: 'SPOT 7', noradId: '40053', type: 'earth-observation' as const, orbitAlt: 694 },
-]
+      id: `sat-${sat.noradId}`,
+      lat: position.lat,
+      altitude: sat.orbitAlt,
+      nextPass,
+      type: sat.type,
+ 
 
-function calculateOrbitPosition(orbitAlt: number, timeSeed: number): { lat: number; lng: number; velocity: number } {
-  const orbitalPeriod = 2 * Math.PI * Math.sqrt(Math.pow((6371 + orbitAlt), 3) / 398600.4418)
-  const angularVelocity = (2 * Math.PI) / orbitalPeriod
-  const currentAngle = (timeSeed * angularVelocity) % (2 * Math.PI)
+export async function generateSatelliteImageryFeeds(): Promise<CameraFeed[]> {
   
-  const inclination = 98.2 * (Math.PI / 180)
+    id: `${sat.id}-feed`,
+    lat: sat.lat,
   
-  const lat = Math.asin(Math.sin(inclination) * Math.sin(currentAngle)) * (180 / Math.PI)
-  const lng = ((currentAngle * (180 / Math.PI) + (timeSeed * 360 / 86164)) % 360) - 180
+    lastFrame: new Date(),
   
-  const velocity = Math.sqrt(398600.4418 / (6371 + orbitAlt))
-  
-  return { lat, lng, velocity }
-}
+  }))
 
-export async function fetchSatellitePasses(): Promise<SatellitePass[]> {
-  const currentTime = Date.now() / 1000
-  
-  return REAL_SATELLITES.map((sat, idx) => {
-    const position = calculateOrbitPosition(sat.orbitAlt, currentTime + idx * 600)
-    
-    const nextPassMinutes = 30 + Math.random() * 60
-    const nextPass = new Date(Date.now() + nextPassMinutes * 60 * 1000)
-    
-    return {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       id: `sat-${sat.noradId}`,
       name: sat.name,
       lat: position.lat,
