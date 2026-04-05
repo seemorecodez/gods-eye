@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
+import { Toaster } from '@/components/ui/sonner'
 import { RepositoryCard } from '@/components/RepositoryCard'
 import { DataSourceCard } from '@/components/DataSourceCard'
 import { InteractiveMap } from '@/components/InteractiveMap'
@@ -43,8 +44,10 @@ function App() {
   const infraRepos = repositories.filter(r => r.category === 'infra')
 
   return (
-    <div className="min-h-screen hex-pattern">
-      <div className="container mx-auto p-8 max-w-[1600px]">
+    <>
+      <Toaster />
+      <div className="min-h-screen hex-pattern">
+        <div className="container mx-auto p-8 max-w-[1600px]">
         <header className="mb-8">
           <div className="flex items-center gap-4 mb-4">
             <Eye size={48} className="text-accent" weight="fill" />
@@ -237,8 +240,9 @@ function App() {
             </div>
           </TabsContent>
         </Tabs>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 
