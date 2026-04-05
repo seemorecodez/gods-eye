@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Progress } from '@/components/ui/progress'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { ExportButton } from '@/components/ExportButton'
 import {
   Network,
   ArrowsClockwise,
@@ -321,6 +322,21 @@ Make it realistic for ML model retraining.`
               </>
             )}
           </Button>
+          
+          <ExportButton
+            data={(patterns || []).map(p => ({
+              title: p.title,
+              probability: `${(p.probability * 100).toFixed(1)}%`,
+              timeframe: p.timeframe,
+              fusionChain: p.fusionChain.join(' → '),
+              correlations: p.correlations.map(c => `${c.name}: ${c.metric}`).join('; '),
+              confidence: `${(p.confidence * 100).toFixed(1)}%`,
+              recommendation: p.recommendation,
+              timestamp: new Date(p.timestamp).toISOString()
+            }))}
+            filename="emergent-patterns"
+            type="patterns"
+          />
           
           <Button
             onClick={retrainModel}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { Card } from '@/components/ui/card'
+import { ExportButton } from '@/components/ExportButton'
 
 declare const spark: {
   user: () => Promise<{ login: string; email: string; avatarUrl: string }>
@@ -161,6 +162,20 @@ export function ThreatAlertManagement() {
             <p className="text-sm text-muted-foreground">
               {alerts.length} total alerts • {alerts.filter(a => !a.acknowledgedBy).length} pending
             </p>
+            <ExportButton
+              data={alerts.map(alert => ({
+                id: alert.id,
+                patternType: getAlertTypeLabel(alert.alertType),
+                severity: alert.severity,
+                title: alert.title,
+                description: alert.description,
+                timestamp: new Date(alert.timestamp).toISOString(),
+                acknowledgedBy: alert.acknowledgedBy || 'N/A',
+                emailSent: alert.emailSent
+              }))}
+              filename="threat-alerts"
+              type="threats"
+            />
           </div>
 
           <ScrollArea className="h-[600px]">

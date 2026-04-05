@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
+import { ExportButton } from '@/components/ExportButton'
 import { Brain, Spinner, Target, FileText, Globe, Shield, Trash, Funnel } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Repository } from '@/lib/types'
@@ -320,6 +321,32 @@ Make it professional and strategic.`
           <p className="text-sm text-muted-foreground">Persistent ML predictions with regional and confidence filtering</p>
         </div>
         <div className="flex items-center gap-2">
+          <ExportButton
+            data={[
+              ...filteredThreats.map(t => ({
+                type: 'Threat Analysis',
+                region: t.region,
+                threatLevel: t.threatLevel,
+                confidence: t.confidence,
+                keyFactors: t.keyFactors.join('; '),
+                recommendation: t.recommendation,
+                timestamp: new Date(t.timestamp).toISOString()
+              })),
+              ...filteredSatellite.map(s => ({
+                type: 'Satellite Analysis',
+                region: s.region,
+                location: s.location,
+                detectedObjects: s.detectedObjects.join('; '),
+                landCoverChange: s.landCoverChange,
+                infrastructureStatus: s.infrastructureStatus,
+                anomalies: s.anomalies.join('; '),
+                confidence: s.confidence,
+                timestamp: new Date(s.timestamp).toISOString()
+              }))
+            ]}
+            filename="ml-predictions"
+            type="predictions"
+          />
           <Button variant="outline" size="sm" onClick={clearAllAnalyses} disabled={totalAnalyses === 0}>
             <Trash size={16} className="mr-2" />
             Clear All

@@ -13,11 +13,13 @@ import { MLPredictionsVisualizer } from '@/components/MLPredictionsVisualizer'
 import { EmergentPatternDetection } from '@/components/EmergentPatternDetection'
 import { AlertNotifications } from '@/components/AlertNotifications'
 import { ThreatAlertManagement } from '@/components/ThreatAlertManagement'
+import { APIMonitoringDashboard } from '@/components/APIMonitoringDashboard'
 import { ViewMode, Repository } from '@/lib/types'
 import { fetchAllRepositories } from '@/lib/github-api'
 import { dataSources } from '@/lib/data'
 import { useHealthMonitor } from '@/hooks/use-health-monitor'
-import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner, GitCommit, Brain, Network, Bell } from '@phosphor-icons/react'
+import { useAuth } from '@/hooks/use-auth'
+import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner, GitCommit, Brain, Network, Bell, ChartBar, User } from '@phosphor-icons/react'
 
 function App() {
   const [activeView, setActiveView] = useState<ViewMode>('stack')
@@ -25,6 +27,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   
   const { alerts, healthStatuses, acknowledgeAlert, acknowledgeAllAlerts } = useHealthMonitor(dataSources)
+  const { session, isLoading: authLoading } = useAuth()
 
   useEffect(() => {
     if (alerts.length > 0) {
@@ -76,12 +79,25 @@ function App() {
       <div className="min-h-screen hex-pattern">
         <div className="container mx-auto p-8 max-w-[1600px]">
         <header className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <Eye size={48} className="text-accent" weight="fill" />
-            <div>
-              <h1 className="text-4xl font-bold text-foreground tracking-tight">GOD'S EYE</h1>
-              <p className="text-muted-foreground text-sm tracking-wide">GEOSPATIAL INTELLIGENCE PLATFORM</p>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <Eye size={48} className="text-accent" weight="fill" />
+              <div>
+                <h1 className="text-4xl font-bold text-foreground tracking-tight">GOD'S EYE</h1>
+                <p className="text-muted-foreground text-sm tracking-wide">GEOSPATIAL INTELLIGENCE PLATFORM</p>
+              </div>
             </div>
+            {session && (
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-sm font-medium text-foreground">{session.login}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Last login: {new Date(session.lastLogin).toLocaleString()}
+                  </div>
+                </div>
+                <img src={session.avatarUrl} alt={session.login} className="w-10 h-10 rounded-full border-2 border-accent" />
+              </div>
+            )}
           </div>
           <Separator className="bg-border" />
         </header>
@@ -115,6 +131,10 @@ function App() {
             <TabsTrigger value="threat-alerts" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
               <Bell size={18} className="mr-2" />
               Threat Alerts
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+              <ChartBar size={18} className="mr-2" />
+              Analytics
             </TabsTrigger>
             <TabsTrigger value="map" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
               <Globe size={18} className="mr-2" />
@@ -228,6 +248,16 @@ function App() {
 
           <TabsContent value="threat-alerts" className="space-y-6">
             <ThreatAlertManagement />
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">API & SYSTEM ANALYTICS</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Monitor API usage, rate limits, and LLM token consumption in real-time
+              </p>
+              <APIMonitoringDashboard />
+            </div>
           </TabsContent>
 
           <TabsContent value="map" className="space-y-6">
