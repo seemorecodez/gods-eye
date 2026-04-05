@@ -1,67 +1,6 @@
 import { CameraFeed } from './types'
 
-  status: 'active' | 'inactive
-  image: {
-  status: 'active' | 'inactive'
-  title: string
-  image: {
-    current: {
-  }
-    d
-   
-}
-export async functio
-    const response = 
-        'x-windy-
-    })
-   
-      retur
-
-    const webcams: 
-    r
-   
- 
-
-      provider: webcam.location.city && webcam.location.country 
-       
-      thumbnail: webcam.image?.current?.thumbnail
-  } catch (error
-    return []
-}
-const 
-
-  'Border Security Arra
-  'Research Station Feed'
-
-  { n
-
-  { name: 'Black Sea', lat: 43.5, lng:
-  { name: 'Korean DMZ', lat: 38.0, lng: 127.0, type: 'border'
-
-function generateStrategicCameras(): CameraFeed[]
-  let cameraId = 5000
-  STRATEGIC_LOCATIONS.forEach(location => {
-    
-      const latOffset = (Math.random(
-      
-      
-      let status: CameraFeed
-      else if (statusRandom < 0.95) status = 'offline'
-      
-      const prefix = locat
-      cameras.push({
-        name: `${location.name} ${location.type.t
-       
-        status,
-        provider,
-      })
-   
- 
-
-
-  const [publicWebcams, strateg
-    Promise.resolve(generateS
-
+const CAMERA_PROVIDERS = [
   'Border Security Array',
   'Military Installation',
   'Research Station Feed'
@@ -77,6 +16,40 @@ const STRATEGIC_LOCATIONS = [
   { name: 'Korean DMZ', lat: 38.0, lng: 127.0, type: 'border' as const },
   { name: 'Kashmir Region', lat: 34.0, lng: 76.0, type: 'border' as const },
 ]
+
+export async function fetchPublicWebcams(): Promise<CameraFeed[]> {
+  try {
+    const response = await fetch('https://api.windy.com/api/webcams/v2/list/limit=50', {
+      headers: {
+        'x-windy-api-key': 'demo'
+      }
+    })
+
+    if (!response.ok) {
+      return []
+    }
+
+    const data = await response.json()
+    const webcams: CameraFeed[] = data.result?.webcams?.map((webcam: any) => ({
+      id: webcam.id,
+      name: webcam.title,
+      lat: webcam.location?.latitude || 0,
+      lng: webcam.location?.longitude || 0,
+      streamUrl: webcam.player?.live?.embed || '',
+      status: webcam.status?.current === 'active' ? 'online' : 'offline',
+      lastFrame: new Date(),
+      provider: webcam.location?.city && webcam.location?.country 
+        ? `${webcam.location.city}, ${webcam.location.country}`
+        : 'Public Webcam',
+      type: 'webcam' as const,
+      thumbnail: webcam.image?.current?.thumbnail
+    })) || []
+
+    return webcams
+  } catch (error) {
+    return []
+  }
+}
 
 function generateStrategicCameras(): CameraFeed[] {
   const cameras: CameraFeed[] = []
@@ -117,7 +90,7 @@ function generateStrategicCameras(): CameraFeed[] {
   })
 
   return cameras
-
+}
 
 export async function fetchAllCameraFeeds(): Promise<CameraFeed[]> {
   const [publicWebcams, strategicCameras] = await Promise.all([
