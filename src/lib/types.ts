@@ -101,7 +101,8 @@ export interface CameraFeed {
   status: 'online' | 'offline' | 'error'
   lastFrame: Date
   provider: string
-  type: 'satellite' | 'ground' | 'aerial'
+  type: 'satellite' | 'ground' | 'aerial' | 'webcam'
+  thumbnail?: string
 }
 
 export interface WeatherData {

@@ -41,31 +41,50 @@ interface IntelligenceBriefing {
 }
 
 const ML_MODELS = [
-  'YOLOv8-Detection',
+  'YOLOv8-Object-Detection',
   'Change-Detection-CNN',
   'Conflict-Predictor-LSTM',
-  'Sentinel-Classifier',
-  'Infrastructure-Monitor'
+  'Sentinel-Classifier-ResNet',
+  'Infrastructure-Monitor-UNet',
+  'Damage-Assessment-VGG',
+  'Population-Density-GAN',
+  'Terrain-Classifier-AlexNet',
+  'Vehicle-Counter-RCNN',
+  'Building-Footprint-SegNet',
+  'Crowd-Analyzer-YOLO',
+  'Smoke-Detection-MobileNet'
 ]
 
 const LOCATIONS = [
   'Damascus, Syria',
   'Khartoum, Sudan',
   'Kiev, Ukraine',
-  'Gaza Strip',
+  'Gaza Strip, Palestine',
   'Aleppo, Syria',
-  'Donetsk, Ukraine'
+  'Donetsk, Ukraine',
+  'Tripoli, Libya',
+  'Kabul, Afghanistan',
+  'Sanaa, Yemen',
+  'Mogadishu, Somalia'
 ]
 
 const OBJECTS = [
   'Military Vehicle',
+  'Tank',
+  'APC',
+  'Artillery Position',
   'Building Complex',
   'Infrastructure',
   'Destroyed Structure',
   'Convoy',
   'Checkpoint',
-  'Camp',
-  'Aircraft'
+  'Encampment',
+  'Aircraft',
+  'Helicopter',
+  'Supply Depot',
+  'Fortification',
+  'Refugee Camp',
+  'Medical Facility'
 ]
 
 export function MLPredictionsVisualizer() {

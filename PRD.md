@@ -27,11 +27,11 @@ This platform integrates multiple data sources, AI processing layers, real-time 
 - **Success criteria**: Status indicators update in real-time, color coding is intuitive (green/yellow/red), detailed metrics are accurate
 
 ### AI Analysis Pipeline Visualizer
-- **Functionality**: Visual flowchart showing how data moves through the AI/ML processing layer, from raw satellite imagery through YOLO detection to analyzed outputs
-- **Purpose**: Demystifies the AI processing workflow and helps users understand confidence levels and processing stages
+- **Functionality**: Visual flowchart showing how data moves through the AI/ML processing layer, from raw satellite imagery through multiple AI models (YOLOv8, Change Detection, Conflict Prediction, Sentiment Analysis, Infrastructure Analysis) to analyzed outputs
+- **Purpose**: Demystifies the expanded AI processing workflow with 8+ distinct ML models and helps users understand confidence levels and processing stages across different analysis types
 - **Trigger**: Accessed via "Pipeline" navigation tab
-- **Progression**: User views processing flow diagram → Sees active processing jobs → Clicks on stage for technical details → Views model architecture, processing time, accuracy metrics
-- **Success criteria**: Flow diagram is clear and animated, processing stages are accurately represented, users can trace data lineage
+- **Progression**: User views processing flow diagram → Sees active processing jobs across multiple AI models → Clicks on stage for technical details → Views model architecture, processing time, accuracy metrics for each specialized model
+- **Success criteria**: Flow diagram shows 8+ AI models clearly and animated, processing stages include object detection, change analysis, conflict prediction, sentiment analysis, infrastructure monitoring, users can trace data lineage through multiple model types
 
 ### Interactive Geospatial Map
 - **Functionality**: Global map interface with layered data visualization showing conflict events, satellite coverage areas, detected changes, real-time weather overlay, threat predictions, and 300+ camera feeds
@@ -48,11 +48,11 @@ This platform integrates multiple data sources, AI processing layers, real-time 
 - **Success criteria**: Integration steps are clear, code examples are syntax-highlighted, examples are realistic
 
 ### Weather Overlay System
-- **Functionality**: Real-time global weather grid displaying temperature, wind, humidity, visibility, and atmospheric conditions across geographic regions
-- **Purpose**: Environmental intelligence layer for operational planning and threat assessment correlation
+- **Functionality**: Live global weather data from Open-Meteo API displaying real-time temperature, wind, humidity, visibility, and atmospheric conditions across geographic regions
+- **Purpose**: Environmental intelligence layer for operational planning and threat assessment correlation using actual meteorological data
 - **Trigger**: Toggled via "Weather Overlay" switch on collaborative map
-- **Progression**: User enables weather layer → Grid of colored circles appears showing temperature zones → Clicks weather marker for detailed conditions → Correlates weather data with threat assessments
-- **Success criteria**: Weather grid covers global regions at 40km resolution, data updates reflect realistic conditions, color coding clearly indicates temperature zones
+- **Progression**: User enables weather layer → Grid of colored circles appears showing real temperature zones from Open-Meteo → Clicks weather marker for live conditions → Correlates actual weather data with threat assessments → Sees real-time updates
+- **Success criteria**: Weather grid fetches live data from Open-Meteo API, covers global regions at configurable resolution, displays actual current conditions, color coding indicates real temperature zones, data refreshes automatically
 
 ### Threat Level Prediction System
 - **Functionality**: AI-powered threat analysis using historical event patterns to predict high-risk zones with confidence scores and contributing factors
@@ -61,12 +61,12 @@ This platform integrates multiple data sources, AI processing layers, real-time 
 - **Progression**: User enables threat layer → High/critical threat zones appear as color-coded rectangles → Clicks zone for threat level details → Reviews historical data trends → Views contributing risk factors → Exports threat assessment to PDF report
 - **Success criteria**: Threat predictions analyze historical events within 10-unit radius, confidence scores calculated from event density, factors list explains reasoning, historical trend data shows 90-day patterns
 
-### 300+ Camera Feed Network
-- **Functionality**: Comprehensive global surveillance network with 300+ camera feeds across major cities, borders, and strategic locations showing online/offline status
-- **Purpose**: Live visual intelligence layer providing real-time monitoring capabilities across critical infrastructure and high-activity zones
+### Live Webcam Feed Network
+- **Functionality**: Comprehensive global surveillance network integrating real public webcam feeds from Windy Webcams API, plus simulated satellite and border cameras, across major cities and strategic locations
+- **Purpose**: Live visual intelligence layer providing real-time monitoring capabilities from actual public webcams at tourist sites, city centers, and high-activity zones combined with simulated strategic feeds
 - **Trigger**: Toggled via "Camera Feeds" switch, individual feeds clickable on map
-- **Progression**: User enables camera layer → 300+ camera icons appear globally → Filters by camera type (satellite/ground/aerial) → Clicks camera for live feed preview → Views camera metadata (ID, provider, status, last frame time) → Monitors online status indicators
-- **Success criteria**: Exactly 300+ cameras generated across 25 major cities plus border/satellite feeds, 75% show online status, cameras distributed realistically with city density, feed dialog shows stream URL and live status
+- **Progression**: User enables camera layer → Real webcam icons appear from Windy API globally → Filters by camera type (webcam/satellite/ground/aerial) → Clicks camera for live feed preview → Views actual webcam streams with titles, locations, player links → Monitors online status indicators → Opens live player in new tab
+- **Success criteria**: Fetches 100+ real webcam feeds from Windy API, augmented with simulated cameras for strategic coverage, displays actual webcam titles and locations, provides direct links to live streams, shows preview images where available, cameras distributed realistically with global coverage
 
 ### PDF Intelligence Report Export
 - **Functionality**: Comprehensive report generation combining team annotations, ML predictions, threat assessments, and optional weather data into formatted PDF document

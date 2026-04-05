@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch'
 import { Progress } from '@/components/ui/progress'
 import { MapEvent, MapAnnotation, CameraFeed, WeatherData, ThreatPrediction, MLPrediction } from '@/lib/types'
 import { fetchAllRepositories } from '@/lib/github-api'
-import { generate300PlusCameraFeeds } from '@/lib/camera-generator'
+import { fetchAllCameraFeeds } from '@/lib/webcam-api'
 import { generateWeatherGrid } from '@/lib/weather-api'
 import { generateThreatPredictions } from '@/lib/threat-analysis'
 import { generatePDFReport } from '@/lib/pdf-export'
@@ -137,7 +137,7 @@ export function CollaborativeMap() {
         setEvents(generatedEvents)
         setLoadingProgress(40)
 
-        const cameras = generate300PlusCameraFeeds()
+        const cameras = await fetchAllCameraFeeds()
         setCameraFeeds(cameras)
         setLoadingProgress(60)
 
@@ -740,16 +740,32 @@ export function CollaborativeMap() {
                   <span className="ml-2 font-mono text-xs">{selectedCamera.id}</span>
                 </div>
               </div>
-              <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+              <div className="aspect-video bg-muted rounded-lg flex items-center justify-center overflow-hidden">
                 {selectedCamera.status === 'online' ? (
-                  <div className="text-center">
-                    <Video size={64} className="mx-auto mb-4 text-accent" weight="fill" />
-                    <p className="text-sm text-muted-foreground">Live feed from {selectedCamera.name}</p>
-                    <p className="text-xs text-muted-foreground mt-1 font-mono break-all px-4">{selectedCamera.streamUrl}</p>
-                    <div className="mt-4 flex items-center justify-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
-                      <span className="text-xs font-mono">LIVE</span>
-                    </div>
+                  <div className="text-center w-full h-full flex flex-col items-center justify-center p-4">
+                    {selectedCamera.thumbnail && selectedCamera.type === 'webcam' ? (
+                      <div className="w-full h-full relative">
+                        <img 
+                          src={selectedCamera.thumbnail} 
+                          alt={selectedCamera.name}
+                          className="w-full h-full object-cover rounded"
+                        />
+                        <div className="absolute top-2 right-2 flex items-center gap-2 bg-background/90 px-2 py-1 rounded">
+                          <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                          <span className="text-xs font-mono">LIVE</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <Video size={64} className="mx-auto mb-4 text-accent" weight="fill" />
+                        <p className="text-sm text-muted-foreground">Live feed from {selectedCamera.name}</p>
+                        <p className="text-xs text-muted-foreground mt-1 font-mono break-all px-4">{selectedCamera.streamUrl}</p>
+                        <div className="mt-4 flex items-center justify-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+                          <span className="text-xs font-mono">LIVE</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center">
@@ -759,6 +775,15 @@ export function CollaborativeMap() {
                   </div>
                 )}
               </div>
+              {selectedCamera.type === 'webcam' && selectedCamera.status === 'online' && (
+                <Button 
+                  className="w-full" 
+                  onClick={() => window.open(selectedCamera.streamUrl, '_blank')}
+                >
+                  <Video size={16} className="mr-2" />
+                  Open Live Stream
+                </Button>
+              )}
               <p className="text-xs text-muted-foreground">
                 Coordinates: {selectedCamera.lat.toFixed(4)}, {selectedCamera.lng.toFixed(4)}
               </p>
