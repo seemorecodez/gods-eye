@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch'
 import { Progress } from '@/components/ui/progress'
 import { MapEvent, MapAnnotation, CameraFeed, WeatherData, ThreatPrediction, MLPrediction } from '@/lib/types'
 import { fetchAllRepositories } from '@/lib/github-api'
-import { fetchAllCameraFeeds } from '@/lib/webcam-api'
+import { generate300PlusCameraFeeds } from '@/lib/camera-generator'
 import { generateWeatherGrid } from '@/lib/weather-api'
 import { generateThreatPredictions } from '@/lib/threat-analysis'
 import { generatePDFReport } from '@/lib/pdf-export'
@@ -137,7 +137,7 @@ export function CollaborativeMap() {
         setEvents(generatedEvents)
         setLoadingProgress(40)
 
-        const cameras = await fetchAllCameraFeeds()
+        const cameras = generate300PlusCameraFeeds()
         setCameraFeeds(cameras)
         setLoadingProgress(60)
 

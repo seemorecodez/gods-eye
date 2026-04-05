@@ -48,11 +48,16 @@
     - 300+ camera feeds (would require actual camera infrastructure)
     - Threat p
 
-- **Status**: ✅ FULLY FUNCTIONAL
+- **Status**: ✅ FULLY FUNCTIONAL - 3 AI CAPABILITIES IMPLEMENTED
+- **Description**: Three distinct AI-powered intelligence analysis capabilities using Spark LLM (GPT-4o-mini)
 - **Details**:
-  - Generates live ML prediction stream
-
+  - **Threat Analysis**: AI-powered geospatial threat assessment with confidence scores
+  - **Satellite Intelligence**: YOLOv8-style object detection and change analysis simulation
+  - **Strategic Briefing**: Executive-level platform capability analysis
+  - All use real Spark LLM API calls (not mock data)
   - JSON mode properly configured for structured outputs
+  - Each analysis is unique and contextually aware
+  - See AI_CAPABILITIES.md for full documentation
 ### Data Storage & Persistence
 - **Description**: Proper use of Spark persistence APIs
   - Map annota
