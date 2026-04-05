@@ -1,67 +1,67 @@
 import { CameraFeed } from './types'
 
-export interface WindyWebcam {
-  id: string
+  status: 'active' | 'inactive
+  image: {
   status: 'active' | 'inactive'
   title: string
   image: {
     current: {
-      thumbnail: string
-    }
   }
-  location: {
-    latitude: number
-    longitude: number
-    city?: string
-    country?: string
-  }
-  player: {
-    day: {
-      embed: string
-    }
-  }
+    d
+   
 }
-
-export async function fetchPublicWebcams(): Promise<CameraFeed[]> {
-  try {
-    const response = await fetch('https://api.windy.com/api/webcams/v2/list/limit=150?show=webcams:image,location,player', {
-      headers: {
-        'x-windy-api-key': 'public'
-      }
+export async functio
+    const response = 
+        'x-windy-
     })
+   
+      retur
 
-    if (!response.ok) {
-      console.warn('Windy API request failed, using fallback data')
-      return []
-    }
+    const webcams: 
+    r
+   
+ 
 
-    const data = await response.json()
-    const webcams: WindyWebcam[] = data.result?.webcams || []
-
-    return webcams.map((webcam): CameraFeed => ({
-      id: `WEBCAM-${webcam.id}`,
-      name: webcam.title || 'Unnamed Webcam',
-      lat: webcam.location.latitude,
-      lng: webcam.location.longitude,
-      streamUrl: webcam.player?.day?.embed || `https://www.windy.com/webcams/${webcam.id}`,
-      status: webcam.status === 'active' ? 'online' : 'offline',
-      lastFrame: new Date(),
       provider: webcam.location.city && webcam.location.country 
-        ? `${webcam.location.city}, ${webcam.location.country}`
-        : 'Windy Webcams',
-      type: 'webcam',
+       
       thumbnail: webcam.image?.current?.thumbnail
-    }))
-  } catch (error) {
-    console.error('Error fetching webcams:', error)
+  } catch (error
     return []
-  }
 }
+const 
 
-const CAMERA_PROVIDERS = [
-  'Sentinel Satellite Network',
-  'Global Earth Observation',
-  'Skywatch Surveillance',
+  'Border Security Arra
+  'Research Station Feed'
+
+  { n
+
+  { name: 'Black Sea', lat: 43.5, lng:
+  { name: 'Korean DMZ', lat: 38.0, lng: 127.0, type: 'border'
+
+function generateStrategicCameras(): CameraFeed[]
+  let cameraId = 5000
+  STRATEGIC_LOCATIONS.forEach(location => {
+    
+      const latOffset = (Math.random(
+      
+      
+      let status: CameraFeed
+      else if (statusRandom < 0.95) status = 'offline'
+      
+      const prefix = locat
+      cameras.push({
+        name: `${location.name} ${location.type.t
+       
+        status,
+        provider,
+      })
+   
+ 
+
+
+  const [publicWebcams, strateg
+    Promise.resolve(generateS
+
   'Border Security Array',
   'Military Installation',
   'Research Station Feed'
@@ -117,7 +117,7 @@ function generateStrategicCameras(): CameraFeed[] {
   })
 
   return cameras
-}
+
 
 export async function fetchAllCameraFeeds(): Promise<CameraFeed[]> {
   const [publicWebcams, strategicCameras] = await Promise.all([
