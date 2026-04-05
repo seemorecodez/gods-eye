@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { Toaster } from '@/components/ui/sonner'
+import { toast } from 'sonner'
 import { RepositoryCard } from '@/components/RepositoryCard'
 import { DataSourceCard } from '@/components/DataSourceCard'
 import { InteractiveMap } from '@/components/InteractiveMap'
@@ -10,15 +11,39 @@ import { PipelineSimulator } from '@/components/PipelineSimulator'
 import { CommitActivityTimeline } from '@/components/CommitActivityTimeline'
 import { MLPredictionsVisualizer } from '@/components/MLPredictionsVisualizer'
 import { EmergentPatternDetection } from '@/components/EmergentPatternDetection'
+import { AlertNotifications } from '@/components/AlertNotifications'
 import { ViewMode, Repository } from '@/lib/types'
 import { fetchAllRepositories } from '@/lib/github-api'
 import { dataSources } from '@/lib/data'
+import { useHealthMonitor } from '@/hooks/use-health-monitor'
 import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner, GitCommit, Brain, Network } from '@phosphor-icons/react'
 
 function App() {
   const [activeView, setActiveView] = useState<ViewMode>('stack')
   const [repositories, setRepositories] = useState<Repository[]>([])
   const [loading, setLoading] = useState(true)
+  
+  const { alerts, healthStatuses, acknowledgeAlert, acknowledgeAllAlerts } = useHealthMonitor(dataSources)
+
+  useEffect(() => {
+    if (alerts.length > 0) {
+      const latestAlert = alerts[alerts.length - 1]
+      
+      if (latestAlert.alertType === 'reconnected') {
+        toast.success(`${latestAlert.dataSourceName} reconnected`, {
+          description: latestAlert.message
+        })
+      } else if (latestAlert.alertType === 'offline') {
+        toast.error(`${latestAlert.dataSourceName} is offline`, {
+          description: latestAlert.message
+        })
+      } else if (latestAlert.alertType === 'slow_sync') {
+        toast.warning(`${latestAlert.dataSourceName} sync delayed`, {
+          description: latestAlert.message
+        })
+      }
+    }
+  }, [alerts])
 
   useEffect(() => {
     async function loadRepositories() {
@@ -160,12 +185,21 @@ function App() {
           </TabsContent>
 
           <TabsContent value="monitor" className="space-y-6">
+            <AlertNotifications 
+              alerts={alerts}
+              onAcknowledge={acknowledgeAlert}
+              onAcknowledgeAll={acknowledgeAllAlerts}
+            />
             <div>
               <h2 className="text-2xl font-bold text-foreground mb-2">DATA SOURCE STATUS</h2>
-              <p className="text-sm text-muted-foreground mb-4">Real-time monitoring of data collection endpoints</p>
+              <p className="text-sm text-muted-foreground mb-4">Real-time monitoring of data collection endpoints with automatic health checks</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {dataSources.map(source => (
-                  <DataSourceCard key={source.id} dataSource={source} />
+                  <DataSourceCard 
+                    key={source.id} 
+                    dataSource={source}
+                    healthStatus={healthStatuses.get(source.id)}
+                  />
                 ))}
               </div>
             </div>

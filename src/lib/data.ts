@@ -23,7 +23,7 @@ export const dataSources: DataSource[] = [
     id: 'ds3',
     name: 'Google Earth Engine',
     status: 'active',
-    lastSync: '3 minutes ago',
+    lastSync: '1 minute ago',
     recordCount: 2341890,
     coverageArea: 'Global',
     repository: 'giswqs/geemap'
@@ -32,7 +32,7 @@ export const dataSources: DataSource[] = [
     id: 'ds4',
     name: 'OSINT COVID-19 Pattern',
     status: 'active',
-    lastSync: '1 minute ago',
+    lastSync: '3 minutes ago',
     recordCount: 98234,
     coverageArea: 'Global',
     repository: 'CSSEGISandData/COVID-19'
@@ -41,7 +41,7 @@ export const dataSources: DataSource[] = [
     id: 'ds5',
     name: 'Conflict Analysis DB',
     status: 'active',
-    lastSync: '4 minutes ago',
+    lastSync: '2 minutes ago',
     recordCount: 45231,
     coverageArea: 'Sub-Saharan Africa',
     repository: 'datapartnership/acled_conflict_analysis'
