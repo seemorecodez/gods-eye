@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
+import { useKV } from '@github/spark/hooks'
 import { Card } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Brain, Spinner, Target, FileText, Globe, Shield } from '@phosphor-icons/react'
-import { motion } from 'framer-motion'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Slider } from '@/components/ui/slider'
+import { Brain, Spinner, Target, FileText, Globe, Shield, Trash, Funnel } from '@phosphor-icons/react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Repository } from '@/lib/types'
 import { fetchAllRepositories } from '@/lib/github-api'
 import { toast } from 'sonner'
@@ -23,10 +26,12 @@ interface ThreatAnalysis {
 interface SatelliteAnalysis {
   id: string
   location: string
+  region: string
   detectedObjects: string[]
   landCoverChange: string
   infrastructureStatus: string
   anomalies: string[]
+  confidence: number
   timestamp: Date
 }
 
@@ -39,26 +44,42 @@ interface IntelligenceBriefing {
   timestamp: Date
 }
 
-const LOCATIONS = [
-  'Damascus, Syria',
-  'Khartoum, Sudan',
-  'Kiev, Ukraine',
-  'Gaza Strip, Palestine',
-  'Aleppo, Syria',
-  'Donetsk, Ukraine',
-  'Tripoli, Libya',
-  'Kabul, Afghanistan',
-  'Sanaa, Yemen',
-  'Mogadishu, Somalia'
+const REGIONS = [
+  'All Regions',
+  'Middle East',
+  'Eastern Europe',
+  'North Africa',
+  'Central Asia',
+  'East Asia',
+  'South Asia',
+  'Sub-Saharan Africa',
+  'Latin America',
+  'Southeast Asia'
 ]
+
+const LOCATIONS_BY_REGION: Record<string, string[]> = {
+  'Middle East': ['Damascus, Syria', 'Gaza Strip, Palestine', 'Baghdad, Iraq', 'Beirut, Lebanon', 'Tehran, Iran'],
+  'Eastern Europe': ['Kiev, Ukraine', 'Donetsk, Ukraine', 'Minsk, Belarus', 'Chisinau, Moldova'],
+  'North Africa': ['Tripoli, Libya', 'Cairo, Egypt', 'Tunis, Tunisia', 'Benghazi, Libya'],
+  'Central Asia': ['Kabul, Afghanistan', 'Tashkent, Uzbekistan', 'Dushanbe, Tajikistan'],
+  'East Asia': ['Taipei, Taiwan', 'Seoul, South Korea', 'Pyongyang, North Korea'],
+  'South Asia': ['Islamabad, Pakistan', 'New Delhi, India', 'Colombo, Sri Lanka'],
+  'Sub-Saharan Africa': ['Mogadishu, Somalia', 'Khartoum, Sudan', 'Addis Ababa, Ethiopia', 'Nairobi, Kenya'],
+  'Latin America': ['Caracas, Venezuela', 'Bogotá, Colombia', 'Mexico City, Mexico'],
+  'Southeast Asia': ['Yangon, Myanmar', 'Manila, Philippines', 'Bangkok, Thailand']
+}
 
 export function MLPredictionsVisualizer() {
   const [activeTab, setActiveTab] = useState<'threat' | 'satellite' | 'briefing'>('threat')
   const [loading, setLoading] = useState(false)
   const [repositories, setRepositories] = useState<Repository[]>([])
-  const [threatAnalyses, setThreatAnalyses] = useState<ThreatAnalysis[]>([])
-  const [satelliteAnalyses, setSatelliteAnalyses] = useState<SatelliteAnalysis[]>([])
-  const [briefings, setBriefings] = useState<IntelligenceBriefing[]>([])
+  
+  const [threatAnalyses, setThreatAnalyses] = useKV<ThreatAnalysis[]>('ml-threat-analyses', [])
+  const [satelliteAnalyses, setSatelliteAnalyses] = useKV<SatelliteAnalysis[]>('ml-satellite-analyses', [])
+  const [briefings, setBriefings] = useKV<IntelligenceBriefing[]>('ml-intelligence-briefings', [])
+  
+  const [selectedRegion, setSelectedRegion] = useState('All Regions')
+  const [confidenceThreshold, setConfidenceThreshold] = useState(70)
 
   useEffect(() => {
     async function loadRepos() {
@@ -71,9 +92,14 @@ export function MLPredictionsVisualizer() {
   const generateThreatAnalysis = async () => {
     setLoading(true)
     try {
-      const region = LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)]
+      const region = selectedRegion === 'All Regions' 
+        ? Object.keys(LOCATIONS_BY_REGION)[Math.floor(Math.random() * Object.keys(LOCATIONS_BY_REGION).length)]
+        : selectedRegion
       
-      const prompt = (window.spark.llmPrompt as any)`You are a geospatial intelligence analyst. Generate a threat analysis for ${region}.
+      const locations = LOCATIONS_BY_REGION[region]
+      const location = locations[Math.floor(Math.random() * locations.length)]
+      
+      const prompt = (window.spark.llmPrompt as any)`You are a geospatial intelligence analyst. Generate a threat analysis for ${location} in the ${region} region.
 
 Return a JSON object with these fields:
 - keyFactors: array of 3-4 specific threat factors (strings)
@@ -87,8 +113,8 @@ Make it realistic and specific to the region.`
       const data = JSON.parse(result)
 
       const analysis: ThreatAnalysis = {
-        id: Date.now().toString(),
-        region,
+        id: `threat-${Date.now()}`,
+        region: location,
         threatLevel: data.threatLevel as ThreatAnalysis['threatLevel'],
         confidence: data.confidence,
         keyFactors: data.keyFactors,
@@ -96,8 +122,8 @@ Make it realistic and specific to the region.`
         timestamp: new Date()
       }
 
-      setThreatAnalyses(prev => [analysis, ...prev])
-      toast.success('Threat analysis generated')
+      setThreatAnalyses((current) => [analysis, ...(current || [])])
+      toast.success(`Threat analysis generated for ${region}`)
     } catch (error) {
       console.error('Error generating threat analysis:', error)
       toast.error('Failed to generate threat analysis')
@@ -109,15 +135,21 @@ Make it realistic and specific to the region.`
   const generateSatelliteAnalysis = async () => {
     setLoading(true)
     try {
-      const location = LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)]
+      const region = selectedRegion === 'All Regions' 
+        ? Object.keys(LOCATIONS_BY_REGION)[Math.floor(Math.random() * Object.keys(LOCATIONS_BY_REGION).length)]
+        : selectedRegion
       
-      const prompt = (window.spark.llmPrompt as any)`You are analyzing satellite imagery of ${location} using YOLOv8 and change detection algorithms.
+      const locations = LOCATIONS_BY_REGION[region]
+      const location = locations[Math.floor(Math.random() * locations.length)]
+      
+      const prompt = (window.spark.llmPrompt as any)`You are analyzing satellite imagery of ${location} in the ${region} region using YOLOv8 and change detection algorithms.
 
 Return a JSON object with these fields:
 - detectedObjects: array of 4-6 detected objects like "Military Vehicle", "Building Complex", etc. (strings)
 - landCoverChange: description of land cover changes observed (string)
 - infrastructureStatus: current infrastructure status assessment (string)  
 - anomalies: array of 2-3 anomalies detected (strings)
+- confidence: a number between 0.7 and 1.0 representing detection accuracy
 
 Make it realistic and specific to conflict zones.`
 
@@ -125,17 +157,19 @@ Make it realistic and specific to conflict zones.`
       const data = JSON.parse(result)
 
       const analysis: SatelliteAnalysis = {
-        id: Date.now().toString(),
+        id: `satellite-${Date.now()}`,
         location,
+        region,
         detectedObjects: data.detectedObjects,
         landCoverChange: data.landCoverChange,
         infrastructureStatus: data.infrastructureStatus,
         anomalies: data.anomalies,
+        confidence: data.confidence,
         timestamp: new Date()
       }
 
-      setSatelliteAnalyses(prev => [analysis, ...prev])
-      toast.success('Satellite analysis complete')
+      setSatelliteAnalyses((current) => [analysis, ...(current || [])])
+      toast.success(`Satellite analysis complete for ${region}`)
     } catch (error) {
       console.error('Error generating satellite analysis:', error)
       toast.error('Failed to analyze satellite imagery')
@@ -166,7 +200,7 @@ Make it professional and strategic.`
       const data = JSON.parse(result)
 
       const briefing: IntelligenceBriefing = {
-        id: Date.now().toString(),
+        id: `briefing-${Date.now()}`,
         executiveSummary: data.executiveSummary,
         keyDevelopments: data.keyDevelopments,
         technologicalTrends: data.technologicalTrends,
@@ -174,7 +208,7 @@ Make it professional and strategic.`
         timestamp: new Date()
       }
 
-      setBriefings(prev => [briefing, ...prev])
+      setBriefings((current) => [briefing, ...(current || [])])
       toast.success('Intelligence briefing generated')
     } catch (error) {
       console.error('Error generating briefing:', error)
@@ -182,6 +216,13 @@ Make it professional and strategic.`
     } finally {
       setLoading(false)
     }
+  }
+
+  const clearAllAnalyses = () => {
+    setThreatAnalyses([])
+    setSatelliteAnalyses([])
+    setBriefings([])
+    toast.success('All AI analyses cleared')
   }
 
   const getThreatColor = (level: ThreatAnalysis['threatLevel']) => {
@@ -194,16 +235,36 @@ Make it professional and strategic.`
   }
 
   const formatTimeAgo = (date: Date) => {
-    const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
+    const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
     
     if (seconds < 60) return `${seconds}s ago`
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
-    return `${Math.floor(seconds / 3600)}h ago`
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
+    return `${Math.floor(seconds / 86400)}d ago`
   }
 
-  const totalAnalyses = threatAnalyses.length + satelliteAnalyses.length + briefings.length
-  const avgConfidence = threatAnalyses.length > 0 
-    ? (threatAnalyses.reduce((sum, a) => sum + a.confidence, 0) / threatAnalyses.length * 100).toFixed(1)
+  const filteredThreats = (threatAnalyses || []).filter(analysis => {
+    const meetsConfidence = (analysis.confidence * 100) >= confidenceThreshold
+    const meetsRegion = selectedRegion === 'All Regions' || 
+      Object.entries(LOCATIONS_BY_REGION).find(([region, locations]) => 
+        region === selectedRegion && locations.some(loc => analysis.region.includes(loc.split(',')[0]))
+      )
+    return meetsConfidence && meetsRegion
+  })
+
+  const filteredSatellite = (satelliteAnalyses || []).filter(analysis => {
+    const meetsConfidence = (analysis.confidence * 100) >= confidenceThreshold
+    const meetsRegion = selectedRegion === 'All Regions' || analysis.region === selectedRegion
+    return meetsConfidence && meetsRegion
+  })
+
+  const totalAnalyses = (threatAnalyses?.length || 0) + (satelliteAnalyses?.length || 0) + (briefings?.length || 0)
+  const allConfidenceScores = [
+    ...(threatAnalyses || []).map(a => a.confidence),
+    ...(satelliteAnalyses || []).map(a => a.confidence)
+  ]
+  const avgConfidence = allConfidenceScores.length > 0 
+    ? (allConfidenceScores.reduce((sum, c) => sum + c, 0) / allConfidenceScores.length * 100).toFixed(1)
     : '0'
 
   return (
@@ -211,11 +272,50 @@ Make it professional and strategic.`
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-foreground mb-2">AI-POWERED INTELLIGENCE ANALYSIS</h2>
-          <p className="text-sm text-muted-foreground">Three AI capabilities for comprehensive geospatial intelligence</p>
+          <p className="text-sm text-muted-foreground">Persistent ML predictions with regional and confidence filtering</p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Brain size={16} className="text-accent animate-pulse" weight="fill" />
-          <span>AI-Driven Analysis</span>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={clearAllAnalyses} disabled={totalAnalyses === 0}>
+            <Trash size={16} className="mr-2" />
+            Clear All
+          </Button>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Brain size={16} className="text-accent animate-pulse" weight="fill" />
+            <span>AI-Driven Analysis</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-card/50 border border-border rounded-lg">
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-foreground flex items-center gap-2">
+            <Funnel size={14} className="text-accent" weight="fill" />
+            Filter by Region
+          </label>
+          <Select value={selectedRegion} onValueChange={setSelectedRegion}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {REGIONS.map(region => (
+                <SelectItem key={region} value={region}>{region}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-foreground flex items-center gap-2">
+            <Target size={14} className="text-accent" weight="bold" />
+            Confidence Threshold: {confidenceThreshold}%
+          </label>
+          <Slider 
+            value={[confidenceThreshold]} 
+            onValueChange={([value]) => setConfidenceThreshold(value)}
+            min={0}
+            max={100}
+            step={5}
+            className="mt-2"
+          />
         </div>
       </div>
 
@@ -228,8 +328,8 @@ Make it professional and strategic.`
               <p className="text-xs text-muted-foreground">AI threat assessment</p>
             </div>
           </div>
-          <div className="text-2xl font-bold text-accent mb-1">{threatAnalyses.length}</div>
-          <p className="text-xs text-muted-foreground">Analyses generated</p>
+          <div className="text-2xl font-bold text-accent mb-1">{filteredThreats.length}</div>
+          <p className="text-xs text-muted-foreground">Analyses (of {threatAnalyses?.length || 0} total)</p>
         </Card>
 
         <Card className="p-5 border border-border/50 bg-card hover:bg-muted/30 transition-colors">
@@ -240,8 +340,8 @@ Make it professional and strategic.`
               <p className="text-xs text-muted-foreground">YOLOv8 detection</p>
             </div>
           </div>
-          <div className="text-2xl font-bold text-accent mb-1">{satelliteAnalyses.length}</div>
-          <p className="text-xs text-muted-foreground">Imagery analyzed</p>
+          <div className="text-2xl font-bold text-accent mb-1">{filteredSatellite.length}</div>
+          <p className="text-xs text-muted-foreground">Analyses (of {satelliteAnalyses?.length || 0} total)</p>
         </Card>
 
         <Card className="p-5 border border-border/50 bg-card hover:bg-muted/30 transition-colors">
@@ -252,7 +352,7 @@ Make it professional and strategic.`
               <p className="text-xs text-muted-foreground">Executive analysis</p>
             </div>
           </div>
-          <div className="text-2xl font-bold text-accent mb-1">{briefings.length}</div>
+          <div className="text-2xl font-bold text-accent mb-1">{briefings?.length || 0}</div>
           <p className="text-xs text-muted-foreground">Briefings created</p>
         </Card>
       </div>
@@ -260,7 +360,7 @@ Make it professional and strategic.`
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="p-4 border border-border/50">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground">Total AI Analyses</span>
+            <span className="text-xs text-muted-foreground">Total AI Analyses (Persisted)</span>
             <Brain size={16} className="text-accent" weight="fill" />
           </div>
           <p className="text-2xl font-bold text-foreground">{totalAnalyses}</p>
@@ -268,7 +368,7 @@ Make it professional and strategic.`
 
         <Card className="p-4 border border-border/50">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground">Avg Confidence</span>
+            <span className="text-xs text-muted-foreground">Avg Confidence Score</span>
             <Target size={16} className="text-accent" weight="bold" />
           </div>
           <p className="text-2xl font-bold text-foreground">{avgConfidence}%</p>
@@ -279,15 +379,15 @@ Make it professional and strategic.`
         <TabsList className="bg-card border border-border p-1">
           <TabsTrigger value="threat" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
             <Shield size={18} className="mr-2" />
-            Threat Analysis
+            Threat Analysis ({filteredThreats.length})
           </TabsTrigger>
           <TabsTrigger value="satellite" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
             <Globe size={18} className="mr-2" />
-            Satellite Intel
+            Satellite Intel ({filteredSatellite.length})
           </TabsTrigger>
           <TabsTrigger value="briefing" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
             <FileText size={18} className="mr-2" />
-            Executive Briefing
+            Executive Briefing ({briefings?.length || 0})
           </TabsTrigger>
         </TabsList>
 
@@ -307,54 +407,65 @@ Make it professional and strategic.`
 
           <ScrollArea className="h-[500px]">
             <div className="space-y-3">
-              {threatAnalyses.length === 0 ? (
+              {filteredThreats.length === 0 ? (
                 <Card className="p-12 text-center">
                   <Shield size={48} className="mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">No threat analyses generated yet</p>
-                  <p className="text-sm text-muted-foreground mt-2">Click "Generate Analysis" to create an AI-powered threat assessment</p>
+                  <p className="text-muted-foreground">
+                    {(threatAnalyses?.length || 0) === 0 
+                      ? 'No threat analyses generated yet' 
+                      : 'No analyses match current filters'}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {(threatAnalyses?.length || 0) === 0 
+                      ? 'Click "Generate Analysis" to create an AI-powered threat assessment'
+                      : 'Adjust region or confidence threshold to see more results'}
+                  </p>
                 </Card>
               ) : (
-                threatAnalyses.map((analysis, index) => (
-                  <motion.div
-                    key={analysis.id}
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <Card className="p-4 border-border hover:bg-muted/30 transition-colors">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline" className="font-mono text-xs">{analysis.region}</Badge>
-                            <Badge className={`${getThreatColor(analysis.threatLevel)} text-background text-xs`}>
-                              {analysis.threatLevel}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground ml-auto">{formatTimeAgo(analysis.timestamp)}</span>
-                          </div>
-                          <div className="mb-3">
-                            <span className="text-xs text-muted-foreground">Confidence: </span>
-                            <span className="text-sm font-bold text-accent">{(analysis.confidence * 100).toFixed(1)}%</span>
-                          </div>
-                          <div className="mb-3">
-                            <h4 className="text-xs font-semibold text-foreground mb-2">Key Threat Factors:</h4>
-                            <ul className="space-y-1">
-                              {analysis.keyFactors.map((factor, idx) => (
-                                <li key={idx} className="text-xs text-muted-foreground flex items-start gap-2">
-                                  <span className="text-accent mt-0.5">▸</span>
-                                  <span>{factor}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div className="p-3 bg-muted/50 rounded border border-border/50">
-                            <h4 className="text-xs font-semibold text-foreground mb-1">Recommendation:</h4>
-                            <p className="text-xs text-muted-foreground">{analysis.recommendation}</p>
+                <AnimatePresence>
+                  {filteredThreats.map((analysis, index) => (
+                    <motion.div
+                      key={analysis.id}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Card className="p-4 border-border hover:bg-muted/30 transition-colors">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge variant="outline" className="font-mono text-xs">{analysis.region}</Badge>
+                              <Badge className={`${getThreatColor(analysis.threatLevel)} text-background text-xs`}>
+                                {analysis.threatLevel}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground ml-auto">{formatTimeAgo(analysis.timestamp)}</span>
+                            </div>
+                            <div className="mb-3">
+                              <span className="text-xs text-muted-foreground">Confidence: </span>
+                              <span className="text-sm font-bold text-accent">{(analysis.confidence * 100).toFixed(1)}%</span>
+                            </div>
+                            <div className="mb-3">
+                              <h4 className="text-xs font-semibold text-foreground mb-2">Key Threat Factors:</h4>
+                              <ul className="space-y-1">
+                                {analysis.keyFactors.map((factor, idx) => (
+                                  <li key={idx} className="text-xs text-muted-foreground flex items-start gap-2">
+                                    <span className="text-accent mt-0.5">▸</span>
+                                    <span>{factor}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div className="p-3 bg-muted/50 rounded border border-border/50">
+                              <h4 className="text-xs font-semibold text-foreground mb-1">Recommendation:</h4>
+                              <p className="text-xs text-muted-foreground">{analysis.recommendation}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </Card>
-                  </motion.div>
-                ))
+                      </Card>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               )}
             </div>
           </ScrollArea>
@@ -376,61 +487,77 @@ Make it professional and strategic.`
 
           <ScrollArea className="h-[500px]">
             <div className="space-y-3">
-              {satelliteAnalyses.length === 0 ? (
+              {filteredSatellite.length === 0 ? (
                 <Card className="p-12 text-center">
                   <Globe size={48} className="mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">No satellite analyses generated yet</p>
-                  <p className="text-sm text-muted-foreground mt-2">Click "Analyze Imagery" to process satellite intelligence</p>
+                  <p className="text-muted-foreground">
+                    {(satelliteAnalyses?.length || 0) === 0 
+                      ? 'No satellite analyses generated yet' 
+                      : 'No analyses match current filters'}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {(satelliteAnalyses?.length || 0) === 0 
+                      ? 'Click "Analyze Imagery" to process satellite intelligence'
+                      : 'Adjust region or confidence threshold to see more results'}
+                  </p>
                 </Card>
               ) : (
-                satelliteAnalyses.map((analysis, index) => (
-                  <motion.div
-                    key={analysis.id}
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <Card className="p-4 border-border hover:bg-muted/30 transition-colors">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline" className="font-mono text-xs">{analysis.location}</Badge>
-                            <span className="text-xs text-muted-foreground ml-auto">{formatTimeAgo(analysis.timestamp)}</span>
-                          </div>
-                          <div className="space-y-3">
-                            <div>
-                              <h4 className="text-xs font-semibold text-foreground mb-2">Detected Objects:</h4>
-                              <div className="flex flex-wrap gap-1">
-                                {analysis.detectedObjects.map((obj, idx) => (
-                                  <Badge key={idx} variant="secondary" className="text-xs">{obj}</Badge>
-                                ))}
+                <AnimatePresence>
+                  {filteredSatellite.map((analysis, index) => (
+                    <motion.div
+                      key={analysis.id}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Card className="p-4 border-border hover:bg-muted/30 transition-colors">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge variant="outline" className="font-mono text-xs">{analysis.location}</Badge>
+                              <Badge variant="secondary" className="text-xs">{analysis.region}</Badge>
+                              <span className="text-xs text-muted-foreground ml-auto">{formatTimeAgo(analysis.timestamp)}</span>
+                            </div>
+                            <div className="mb-3">
+                              <span className="text-xs text-muted-foreground">Detection Confidence: </span>
+                              <span className="text-sm font-bold text-accent">{(analysis.confidence * 100).toFixed(1)}%</span>
+                            </div>
+                            <div className="space-y-3">
+                              <div>
+                                <h4 className="text-xs font-semibold text-foreground mb-2">Detected Objects:</h4>
+                                <div className="flex flex-wrap gap-1">
+                                  {analysis.detectedObjects.map((obj, idx) => (
+                                    <Badge key={idx} variant="secondary" className="text-xs">{obj}</Badge>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                            <div className="p-3 bg-muted/50 rounded border border-border/50">
-                              <h4 className="text-xs font-semibold text-foreground mb-1">Land Cover Change:</h4>
-                              <p className="text-xs text-muted-foreground">{analysis.landCoverChange}</p>
-                            </div>
-                            <div className="p-3 bg-muted/50 rounded border border-border/50">
-                              <h4 className="text-xs font-semibold text-foreground mb-1">Infrastructure Status:</h4>
-                              <p className="text-xs text-muted-foreground">{analysis.infrastructureStatus}</p>
-                            </div>
-                            <div>
-                              <h4 className="text-xs font-semibold text-foreground mb-2">Anomalies Detected:</h4>
-                              <ul className="space-y-1">
-                                {analysis.anomalies.map((anomaly, idx) => (
-                                  <li key={idx} className="text-xs text-muted-foreground flex items-start gap-2">
-                                    <span className="text-accent mt-0.5">▸</span>
-                                    <span>{anomaly}</span>
-                                  </li>
-                                ))}
-                              </ul>
+                              <div className="p-3 bg-muted/50 rounded border border-border/50">
+                                <h4 className="text-xs font-semibold text-foreground mb-1">Land Cover Change:</h4>
+                                <p className="text-xs text-muted-foreground">{analysis.landCoverChange}</p>
+                              </div>
+                              <div className="p-3 bg-muted/50 rounded border border-border/50">
+                                <h4 className="text-xs font-semibold text-foreground mb-1">Infrastructure Status:</h4>
+                                <p className="text-xs text-muted-foreground">{analysis.infrastructureStatus}</p>
+                              </div>
+                              <div>
+                                <h4 className="text-xs font-semibold text-foreground mb-2">Anomalies Detected:</h4>
+                                <ul className="space-y-1">
+                                  {analysis.anomalies.map((anomaly, idx) => (
+                                    <li key={idx} className="text-xs text-muted-foreground flex items-start gap-2">
+                                      <span className="text-accent mt-0.5">▸</span>
+                                      <span>{anomaly}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </Card>
-                  </motion.div>
-                ))
+                      </Card>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               )}
             </div>
           </ScrollArea>
@@ -462,7 +589,7 @@ Make it professional and strategic.`
                 <div className="text-xs text-muted-foreground">Total Stars</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-accent">{briefings.length}</div>
+                <div className="text-2xl font-bold text-accent">{briefings?.length || 0}</div>
                 <div className="text-xs text-muted-foreground">Briefings</div>
               </div>
             </div>
@@ -470,76 +597,91 @@ Make it professional and strategic.`
 
           <ScrollArea className="h-[500px]">
             <div className="space-y-4">
-              {briefings.length === 0 ? (
+              {(briefings?.length || 0) === 0 ? (
                 <Card className="p-12 text-center">
                   <FileText size={48} className="mx-auto mb-4 text-muted-foreground" />
                   <p className="text-muted-foreground">No briefings generated yet</p>
                   <p className="text-sm text-muted-foreground mt-2">Click "Generate Briefing" to create a strategic intelligence report</p>
                 </Card>
               ) : (
-                briefings.map((briefing, index) => (
-                  <motion.div
-                    key={briefing.id}
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <Card className="p-5 border-border hover:bg-muted/30 transition-colors">
-                      <div className="flex items-center justify-between mb-4">
-                        <Badge variant="outline" className="font-mono text-xs">CLASSIFIED - STRATEGIC</Badge>
-                        <span className="text-xs text-muted-foreground">{formatTimeAgo(briefing.timestamp)}</span>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        <div className="p-4 bg-accent/10 border border-accent/30 rounded">
-                          <h4 className="text-xs font-semibold text-accent mb-2">EXECUTIVE SUMMARY</h4>
-                          <p className="text-sm text-foreground leading-relaxed">{briefing.executiveSummary}</p>
+                <AnimatePresence>
+                  {(briefings || []).map((briefing, index) => (
+                    <motion.div
+                      key={briefing.id}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Card className="p-5 border-border hover:bg-muted/30 transition-colors">
+                        <div className="flex items-center justify-between mb-4">
+                          <Badge variant="outline" className="font-mono text-xs">CLASSIFIED - STRATEGIC</Badge>
+                          <span className="text-xs text-muted-foreground">{formatTimeAgo(briefing.timestamp)}</span>
                         </div>
+                        
+                        <div className="space-y-4">
+                          <div className="p-4 bg-accent/10 border border-accent/30 rounded">
+                            <h4 className="text-xs font-semibold text-accent mb-2">EXECUTIVE SUMMARY</h4>
+                            <p className="text-sm text-foreground leading-relaxed">{briefing.executiveSummary}</p>
+                          </div>
 
-                        <div>
-                          <h4 className="text-xs font-semibold text-foreground mb-2">KEY DEVELOPMENTS</h4>
-                          <ul className="space-y-2">
-                            {briefing.keyDevelopments.map((dev, idx) => (
-                              <li key={idx} className="text-xs text-muted-foreground flex items-start gap-2 p-2 bg-muted/30 rounded">
-                                <span className="text-accent mt-0.5 font-bold">{idx + 1}.</span>
-                                <span>{dev}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                          <div>
+                            <h4 className="text-xs font-semibold text-foreground mb-2">KEY DEVELOPMENTS</h4>
+                            <ul className="space-y-2">
+                              {briefing.keyDevelopments.map((dev, idx) => (
+                                <li key={idx} className="text-xs text-muted-foreground flex items-start gap-2 p-2 bg-muted/30 rounded">
+                                  <span className="text-accent mt-0.5 font-bold">{idx + 1}.</span>
+                                  <span>{dev}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
 
-                        <div>
-                          <h4 className="text-xs font-semibold text-foreground mb-2">TECHNOLOGICAL TRENDS</h4>
-                          <ul className="space-y-2">
-                            {briefing.technologicalTrends.map((trend, idx) => (
-                              <li key={idx} className="text-xs text-muted-foreground flex items-start gap-2 p-2 bg-muted/30 rounded">
-                                <span className="text-accent mt-0.5">▸</span>
-                                <span>{trend}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                          <div>
+                            <h4 className="text-xs font-semibold text-foreground mb-2">TECHNOLOGICAL TRENDS</h4>
+                            <ul className="space-y-2">
+                              {briefing.technologicalTrends.map((trend, idx) => (
+                                <li key={idx} className="text-xs text-muted-foreground flex items-start gap-2 p-2 bg-muted/30 rounded">
+                                  <span className="text-accent mt-0.5">▸</span>
+                                  <span>{trend}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
 
-                        <div className="p-4 bg-primary/10 border border-primary/30 rounded">
-                          <h4 className="text-xs font-semibold text-primary-foreground mb-2">STRATEGIC RECOMMENDATIONS</h4>
-                          <ul className="space-y-2">
-                            {briefing.recommendations.map((rec, idx) => (
-                              <li key={idx} className="text-xs text-foreground flex items-start gap-2">
-                                <span className="text-accent mt-0.5 font-bold">→</span>
-                                <span>{rec}</span>
-                              </li>
-                            ))}
-                          </ul>
+                          <div className="p-4 bg-primary/10 border border-primary/30 rounded">
+                            <h4 className="text-xs font-semibold text-primary-foreground mb-2">STRATEGIC RECOMMENDATIONS</h4>
+                            <ul className="space-y-2">
+                              {briefing.recommendations.map((rec, idx) => (
+                                <li key={idx} className="text-xs text-foreground flex items-start gap-2">
+                                  <span className="text-accent mt-0.5 font-bold">→</span>
+                                  <span>{rec}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         </div>
-                      </div>
-                    </Card>
-                  </motion.div>
-                ))
+                      </Card>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               )}
             </div>
           </ScrollArea>
         </TabsContent>
       </Tabs>
+
+      <Card className="p-4 border-border bg-card/50">
+        <div className="flex items-start gap-3">
+          <Brain size={20} className="text-accent mt-1" weight="fill" />
+          <div>
+            <h3 className="font-semibold text-sm mb-1">Persistent AI Intelligence</h3>
+            <p className="text-xs text-muted-foreground">
+              All AI analyses are automatically persisted across sessions using useKV storage. Filter by region and confidence threshold to focus on specific intelligence. Analyses include real-time threat assessments, YOLOv8 satellite imagery detection, and strategic briefings generated by GPT-4o-mini.
+            </p>
+          </div>
+        </div>
+      </Card>
     </div>
   )
 }
