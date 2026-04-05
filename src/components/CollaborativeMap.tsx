@@ -742,8 +742,22 @@ export function CollaborativeMap() {
               </div>
               <div className="aspect-video bg-muted rounded-lg flex items-center justify-center overflow-hidden">
                 {selectedCamera.status === 'online' ? (
-                  <div className="text-center w-full h-full flex flex-col items-center justify-center p-4">
-                    {selectedCamera.thumbnail && selectedCamera.type === 'webcam' ? (
+                  <div className="text-center w-full h-full relative">
+                    {selectedCamera.embedUrl && selectedCamera.type === 'webcam' ? (
+                      <div className="w-full h-full relative">
+                        <iframe
+                          src={selectedCamera.embedUrl}
+                          className="w-full h-full border-0 rounded"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          title={selectedCamera.name}
+                        />
+                        <div className="absolute top-2 right-2 flex items-center gap-2 bg-background/90 px-2 py-1 rounded z-10">
+                          <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                          <span className="text-xs font-mono">LIVE</span>
+                        </div>
+                      </div>
+                    ) : selectedCamera.thumbnail ? (
                       <div className="w-full h-full relative">
                         <img 
                           src={selectedCamera.thumbnail} 
@@ -756,7 +770,7 @@ export function CollaborativeMap() {
                         </div>
                       </div>
                     ) : (
-                      <>
+                      <div className="w-full h-full flex flex-col items-center justify-center p-4">
                         <Video size={64} className="mx-auto mb-4 text-accent" weight="fill" />
                         <p className="text-sm text-muted-foreground">Live feed from {selectedCamera.name}</p>
                         <p className="text-xs text-muted-foreground mt-1 font-mono break-all px-4">{selectedCamera.streamUrl}</p>
@@ -764,7 +778,7 @@ export function CollaborativeMap() {
                           <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
                           <span className="text-xs font-mono">LIVE</span>
                         </div>
-                      </>
+                      </div>
                     )}
                   </div>
                 ) : (
@@ -775,13 +789,13 @@ export function CollaborativeMap() {
                   </div>
                 )}
               </div>
-              {selectedCamera.type === 'webcam' && selectedCamera.status === 'online' && (
+              {selectedCamera.type === 'webcam' && selectedCamera.status === 'online' && selectedCamera.embedUrl && (
                 <Button 
                   className="w-full" 
-                  onClick={() => window.open(selectedCamera.streamUrl, '_blank')}
+                  onClick={() => window.open(selectedCamera.embedUrl || selectedCamera.streamUrl, '_blank')}
                 >
                   <Video size={16} className="mr-2" />
-                  Open Live Stream
+                  Open Full Screen
                 </Button>
               )}
               <p className="text-xs text-muted-foreground">
@@ -849,7 +863,7 @@ export function CollaborativeMap() {
           <div>
             <h3 className="font-semibold text-sm mb-1">Advanced Intelligence Features</h3>
             <p className="text-xs text-muted-foreground">
-              Double-click the map to add annotations. Toggle weather overlay for environmental analysis. Enable threat predictions to visualize high-risk zones based on historical data patterns. Use the Export PDF button to generate comprehensive intelligence reports including all annotations, ML predictions, and threat assessments.
+              Double-click the map to add annotations. Click camera markers to view live webcam feeds from around the world—over {cameraFeeds.length} feeds available including Abbey Road, Times Square, Tokyo, and more. Toggle weather overlay for environmental analysis. Enable threat predictions to visualize high-risk zones based on historical data patterns. Use the Export PDF button to generate comprehensive intelligence reports including all annotations, ML predictions, and threat assessments.
             </p>
           </div>
         </div>

@@ -98,6 +98,7 @@ export interface CameraFeed {
   lat: number
   lng: number
   streamUrl: string
+  embedUrl?: string
   status: 'online' | 'offline' | 'error'
   lastFrame: Date
   provider: string
