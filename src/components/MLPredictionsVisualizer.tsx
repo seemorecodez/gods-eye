@@ -4,12 +4,14 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Brain, Spinner, Target, Satellite, FileText, Globe } from '@phosphor-icons/react'
-import { motion } from 'framer-motion'
-import { Repository } from '@/lib/types'
+import { Progress } from '@/components/ui/progress'
+import { Brain, Spinner, Target, FileText, Globe, Shield, Clock, Image } from '@phosphor-icons/react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Repository, MLPrediction } from '@/lib/types'
+import { fetchAllRepositories } from '@/lib/github-api'
+import { toast } from 'sonner'
 
-
-  threatLevel: 'LOW' | 'MO
+interface ThreatAnalysis {
   id: string
   region: string
   threatLevel: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL'
@@ -38,14 +40,42 @@ interface IntelligenceBriefing {
   timestamp: Date
 }
 
+const ML_MODELS = [
+  'YOLOv8-Detection',
+  'Change-Detection-CNN',
+  'Conflict-Predictor-LSTM',
+  'Sentinel-Classifier',
+  'Infrastructure-Monitor'
+]
+
+const LOCATIONS = [
+  'Damascus, Syria',
+  'Khartoum, Sudan',
+  'Kiev, Ukraine',
+  'Gaza Strip',
+  'Aleppo, Syria',
+  'Donetsk, Ukraine'
+]
+
+const OBJECTS = [
+  'Military Vehicle',
+  'Building Complex',
+  'Infrastructure',
+  'Destroyed Structure',
+  'Convoy',
+  'Checkpoint',
+  'Camp',
+  'Aircraft'
+]
+
 export function MLPredictionsVisualizer() {
   const [activeTab, setActiveTab] = useState<'threat' | 'satellite' | 'briefing'>('threat')
   const [loading, setLoading] = useState(false)
   const [repositories, setRepositories] = useState<Repository[]>([])
-]
-const LOCATIONS = [
-  'Damascus, Syria',
-  'Khartoum, Sudan',
+  const [predictions, setPredictions] = useState<MLPrediction[]>([])
+  const [threatAnalyses, setThreatAnalyses] = useState<ThreatAnalysis[]>([])
+  const [satelliteAnalyses, setSatelliteAnalyses] = useState<SatelliteAnalysis[]>([])
+  const [briefings, setBriefings] = useState<IntelligenceBriefing[]>([])
 
   useEffect(() => {
     async function loadRepos() {
@@ -53,7 +83,154 @@ const LOCATIONS = [
       setRepositories(repos)
     }
     loadRepos()
+
+    const interval = setInterval(() => {
+      if (Math.random() > 0.7) {
+        addPrediction()
+      }
+    }, 3000)
+
+    return () => clearInterval(interval)
   }, [])
+
+  const addPrediction = () => {
+    const model = ML_MODELS[Math.floor(Math.random() * ML_MODELS.length)]
+    const location = LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)]
+    const objects = Math.floor(Math.random() * 15) + 1
+
+    const prediction: MLPrediction = {
+      id: Date.now().toString(),
+      modelName: model,
+      inputType: `Satellite imagery - ${location}`,
+      prediction: `Detected ${objects} object(s) of interest`,
+      confidence: 0.65 + Math.random() * 0.34,
+      timestamp: new Date(),
+      metadata: {
+        processingTime: Math.floor(Math.random() * 500) + 100,
+        imageSize: '2048x2048',
+        objectsDetected: objects,
+        modelVersion: 'v' + (Math.floor(Math.random() * 3) + 1) + '.' + Math.floor(Math.random() * 10)
+      }
+    }
+
+    setPredictions(prev => [prediction, ...prev].slice(0, 20))
+  }
+
+  const generateThreatAnalysis = async () => {
+    setLoading(true)
+    try {
+      const region = LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)]
+      
+      const prompt = (window.spark.llmPrompt as any)`You are a geospatial intelligence analyst. Generate a threat analysis for ${region}.
+
+Return a JSON object with these fields:
+- keyFactors: array of 3-4 specific threat factors (strings)
+- recommendation: a brief tactical recommendation (string)
+- threatLevel: one of LOW, MODERATE, HIGH, CRITICAL (string)
+- confidence: a number between 0.7 and 1.0
+
+Make it realistic and specific to the region.`
+
+      const result = await window.spark.llm(prompt, 'gpt-4o-mini', true)
+      const data = JSON.parse(result)
+
+      const analysis: ThreatAnalysis = {
+        id: Date.now().toString(),
+        region,
+        threatLevel: data.threatLevel as ThreatAnalysis['threatLevel'],
+        confidence: data.confidence,
+        keyFactors: data.keyFactors,
+        recommendation: data.recommendation,
+        timestamp: new Date()
+      }
+
+      setThreatAnalyses(prev => [analysis, ...prev])
+      toast.success('Threat analysis generated')
+    } catch (error) {
+      console.error('Error generating threat analysis:', error)
+      toast.error('Failed to generate threat analysis')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const generateSatelliteAnalysis = async () => {
+    setLoading(true)
+    try {
+      const location = LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)]
+      
+      const prompt = (window.spark.llmPrompt as any)`You are analyzing satellite imagery of ${location} using YOLOv8 and change detection algorithms.
+
+Return a JSON object with these fields:
+- detectedObjects: array of 4-6 detected objects like "Military Vehicle", "Building Complex", etc. (strings)
+- landCoverChange: description of land cover changes observed (string)
+- infrastructureStatus: current infrastructure status assessment (string)  
+- anomalies: array of 2-3 anomalies detected (strings)
+
+Make it realistic and specific to conflict zones.`
+
+      const result = await window.spark.llm(prompt, 'gpt-4o-mini', true)
+      const data = JSON.parse(result)
+
+      const analysis: SatelliteAnalysis = {
+        id: Date.now().toString(),
+        location,
+        detectedObjects: data.detectedObjects,
+        landCoverChange: data.landCoverChange,
+        infrastructureStatus: data.infrastructureStatus,
+        anomalies: data.anomalies,
+        timestamp: new Date()
+      }
+
+      setSatelliteAnalyses(prev => [analysis, ...prev])
+      toast.success('Satellite analysis complete')
+    } catch (error) {
+      console.error('Error generating satellite analysis:', error)
+      toast.error('Failed to analyze satellite imagery')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const generateBriefing = async () => {
+    setLoading(true)
+    try {
+      const aiCount = repositories.filter(r => r.category === 'ai').length
+      const totalStars = repositories.reduce((sum, r) => sum + r.stars, 0)
+      
+      const prompt = (window.spark.llmPrompt as any)`You are generating a strategic intelligence briefing for a geospatial intelligence platform called "God's Eye".
+
+The platform has ${repositories.length} components, ${aiCount} AI systems, and ${totalStars} total GitHub stars.
+
+Return a JSON object with these fields:
+- executiveSummary: 2-3 sentence executive summary of platform capabilities (string)
+- keyDevelopments: array of 3 key developments or capabilities (strings)
+- technologicalTrends: array of 3 technological trends in geospatial intelligence (strings)
+- recommendations: array of 3 strategic recommendations (strings)
+
+Make it professional and strategic.`
+
+      const result = await window.spark.llm(prompt, 'gpt-4o-mini', true)
+      const data = JSON.parse(result)
+
+      const briefing: IntelligenceBriefing = {
+        id: Date.now().toString(),
+        executiveSummary: data.executiveSummary,
+        keyDevelopments: data.keyDevelopments,
+        technologicalTrends: data.technologicalTrends,
+        recommendations: data.recommendations,
+        timestamp: new Date()
+      }
+
+      setBriefings(prev => [briefing, ...prev])
+      toast.success('Intelligence briefing generated')
+    } catch (error) {
+      console.error('Error generating briefing:', error)
+      toast.error('Failed to generate briefing')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const getConfidenceColor = (confidence: number) => {
     if (confidence >= 0.9) return 'text-green-400'
@@ -65,6 +242,15 @@ const LOCATIONS = [
     if (confidence >= 0.9) return 'bg-green-400'
     if (confidence >= 0.75) return 'bg-yellow-400'
     return 'bg-orange-400'
+  }
+
+  const getThreatColor = (level: ThreatAnalysis['threatLevel']) => {
+    switch (level) {
+      case 'CRITICAL': return 'bg-red-500'
+      case 'HIGH': return 'bg-orange-500'
+      case 'MODERATE': return 'bg-yellow-500'
+      case 'LOW': return 'bg-green-500'
+    }
   }
 
   const formatTimeAgo = (date: Date) => {
@@ -88,16 +274,14 @@ const LOCATIONS = [
         </div>
       </div>
 
-      {loading ? (
-        <Card className="p-12 flex items-center justify-center">
-          <div className="text-center">
-            <Spinner size={48} className="mx-auto mb-4 text-accent animate-spin" />
-            <p className="text-muted-foreground">Initializing ML inference engine...</p>
-          </div>
-        </Card>
-      ) : (
-        <ScrollArea className="h-[600px] rounded-lg border border-border bg-card">
-          <div className="p-4 space-y-3">
+      <ScrollArea className="h-[300px] rounded-lg border border-border bg-card">
+        <div className="p-4 space-y-3">
+          {predictions.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Brain size={48} className="mx-auto mb-2 opacity-50" />
+              <p className="text-sm">Waiting for ML predictions...</p>
+            </div>
+          ) : (
             <AnimatePresence mode="popLayout">
               {predictions.map((prediction, index) => (
                 <motion.div
@@ -177,9 +361,9 @@ const LOCATIONS = [
                 </motion.div>
               ))}
             </AnimatePresence>
-          </div>
-        </ScrollArea>
-      )}
+          )}
+        </div>
+      </ScrollArea>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-4 border border-border/50">
@@ -194,31 +378,26 @@ const LOCATIONS = [
 
         <Card className="p-4 border border-border/50">
           <div className="flex items-center justify-between mb-2">
-      const briefing: IntelligenceBriefing = {
-        executiveSummary: data.executiveSummary,
-        technologi
-        timestamp: n
-      
-      toast.success('Intelligence briefing generated')
-      console.error('Error generating briefing:', error)
-    } finally 
-    }
+            <span className="text-xs text-muted-foreground">Predictions</span>
+            <Badge variant="outline" className="text-accent border-accent">
+              {predictions.length}
+            </Badge>
+          </div>
+          <p className="text-2xl font-bold text-foreground">{predictions.length}</p>
+        </Card>
 
-    switch (level) {
-      case 'HIGH': return 'bg-orange-500'
-      case 'LOW': return 'bg-green-500'
-    }
-
-    const seconds = 
-    if (seconds 
-  }
-  return (
-      <div c
-          
-   
- 
-          <span>3 AI Systems Active</span>
-        </div>
+        <Card className="p-4 border border-border/50">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-muted-foreground">Avg Confidence</span>
+            <Brain size={16} className="text-accent" weight="fill" />
+          </div>
+          <p className="text-2xl font-bold text-foreground">
+            {predictions.length > 0 
+              ? ((predictions.reduce((sum, p) => sum + p.confidence, 0) / predictions.length) * 100).toFixed(1) + '%'
+              : '0%'
+            }
+          </p>
+        </Card>
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="space-y-4">
