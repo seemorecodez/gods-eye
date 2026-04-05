@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useKV } from '@github/spark/hooks'
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap, useMapEvents, Rectangle } from 'react-leaflet'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Progress } from '@/components/ui/progress'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { MapEvent, MapAnnotation, CameraFeed, WeatherData, ThreatPrediction, MLPrediction } from '@/lib/types'
 import { fetchAllRepositories } from '@/lib/github-api'
 import { fetchWindyWebcams } from '@/lib/windy-webcams-api'
@@ -55,10 +55,9 @@ function AddAnnotationHandler({ onAddAnnotation }: { onAddAnnotation: (lat: numb
   return null
 }
 
-export function CollaborativeMap() {
+export function CollaborativeMapEnhanced() {
   const [events, setEvents] = useState<MapEvent[]>([])
   const [annotations, setAnnotations] = useKV<MapAnnotation[]>("map-annotations", [])
-  const [cameraFeeds, setCameraFeeds] = useState<CameraFeed[]>([])
   const [allCameras, setAllCameras] = useState<CameraFeed[]>([])
   const [satellitePasses, setSatellitePasses] = useState<SatellitePass[]>([])
   const [weatherData, setWeatherData] = useState<WeatherData[]>([])
@@ -77,7 +76,7 @@ export function CollaborativeMap() {
   const [showThreats, setShowThreats] = useState(false)
   
   const [filterRegion, setFilterRegion] = useState<string>('')
-  const [filterProvider, setFilterProvider] = useState<string>('')
+  const [filterProvider, setFilterProvider] = useState<string>('all')
   const [filterType, setFilterType] = useState<CameraFeed['type'] | 'all'>('all')
   
   const [annotationDialogOpen, setAnnotationDialogOpen] = useState(false)
@@ -94,9 +93,9 @@ export function CollaborativeMap() {
   useEffect(() => {
     async function loadRealData() {
       try {
-        setLoadingProgress(10)
+        setLoadingProgress(5)
         const repos = await fetchAllRepositories()
-        setLoadingProgress(20)
+        setLoadingProgress(10)
         
         const activityData: RepoActivity[] = [
           { repo: 'acled', lat: 8.7832, lng: 34.5085, activity: 0 },
@@ -146,22 +145,33 @@ export function CollaborativeMap() {
         })
 
         setEvents(generatedEvents)
-        setLoadingProgress(40)
+        setLoadingProgress(20)
 
-        const cameras = await fetchWindyWebcams(300)
-        setCameraFeeds(cameras)
-        setLoadingProgress(60)
+        const [webcams, trafficCams, satellites, satelliteFeeds] = await Promise.all([
+          fetchWindyWebcams(150),
+          fetchTrafficCameras(),
+          fetchSatellitePasses(),
+          generateSatelliteImageryFeeds()
+        ])
+        
+        const combinedCameras = [...webcams, ...trafficCams, ...satelliteFeeds]
+        setAllCameras(combinedCameras)
+        setSatellitePasses(satellites)
+        setLoadingProgress(50)
 
         const weather = await generateWeatherGrid(40)
         setWeatherData(weather)
-        setLoadingProgress(80)
+        setLoadingProgress(70)
 
         const threats = await generateThreatPredictions(generatedEvents, 40)
         setThreatPredictions(threats)
         setLoadingProgress(100)
 
         setLoading(false)
-        toast.success(`Loaded ${cameras.length} camera feeds, ${weather.length} weather points, and ${threats.length} threat zones`)
+        const webcamCount = webcams.length
+        const trafficCount = trafficCams.length
+        const satCount = satelliteFeeds.length
+        toast.success(`Loaded ${webcamCount} webcams, ${trafficCount} traffic cameras, ${satCount} satellite feeds, and ${satellites.length} orbital satellites`)
       } catch (error) {
         console.error('Error loading data:', error)
         setLoading(false)
@@ -171,6 +181,20 @@ export function CollaborativeMap() {
 
     loadRealData()
   }, [])
+
+  const filteredCameras = useMemo(() => {
+    return allCameras.filter(cam => {
+      if (filterType !== 'all' && cam.type !== filterType) return false
+      if (filterProvider !== 'all' && cam.provider !== filterProvider) return false
+      if (filterRegion && !cam.name.toLowerCase().includes(filterRegion.toLowerCase())) return false
+      return true
+    })
+  }, [allCameras, filterType, filterProvider, filterRegion])
+
+  const providers = useMemo(() => {
+    const uniqueProviders = new Set(allCameras.map(c => c.provider))
+    return Array.from(uniqueProviders).sort()
+  }, [allCameras])
 
   const handleAddAnnotation = (lat: number, lng: number) => {
     setNewAnnotation({ lat, lng })
@@ -232,7 +256,7 @@ export function CollaborativeMap() {
   }
 
   const filteredEvents = events.filter(event => 
-    activeLayer === 'all' || activeLayer === 'cameras' || event.type === activeLayer
+    activeLayer === 'all' || activeLayer === 'cameras' || activeLayer === 'traffic' || event.type === activeLayer
   )
 
   const filteredThreats = threatPredictions.filter(t => 
@@ -292,7 +316,10 @@ export function CollaborativeMap() {
     return 'oklch(0.70 0.20 40)'
   }
 
-  const onlineCameras = cameraFeeds.filter(c => c.status === 'online').length
+  const onlineCameras = filteredCameras.filter(c => c.status === 'online').length
+  const webcamCount = filteredCameras.filter(c => c.type === 'webcam').length
+  const trafficCount = filteredCameras.filter(c => c.type === 'traffic' || c.type === 'ground').length
+  const satelliteCount = filteredCameras.filter(c => c.type === 'satellite').length
 
   return (
     <div className="space-y-4">
@@ -334,7 +361,15 @@ export function CollaborativeMap() {
           onClick={() => setActiveLayer('cameras')}
         >
           <Video size={16} className="mr-2" />
-          Cameras ({cameraFeeds.length})
+          Webcams ({webcamCount})
+        </Button>
+        <Button
+          size="sm"
+          variant={activeLayer === 'traffic' ? 'default' : 'outline'}
+          onClick={() => setActiveLayer('traffic')}
+        >
+          <Car size={16} className="mr-2" />
+          Traffic ({trafficCount})
         </Button>
         <div className="flex items-center gap-2 ml-auto">
           <Button
@@ -348,6 +383,57 @@ export function CollaborativeMap() {
         </div>
       </div>
 
+      <Card className="p-4 border-border bg-card/50">
+        <div className="flex items-center gap-2 mb-3">
+          <Funnel size={18} className="text-accent" weight="fill" />
+          <h3 className="font-semibold text-sm">Camera Feed Filters</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Camera Type</label>
+            <Select value={filterType} onValueChange={(v) => setFilterType(v as CameraFeed['type'] | 'all')}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types ({allCameras.length})</SelectItem>
+                <SelectItem value="webcam">Webcams ({allCameras.filter(c => c.type === 'webcam').length})</SelectItem>
+                <SelectItem value="traffic">Traffic ({allCameras.filter(c => c.type === 'traffic' || c.type === 'ground').length})</SelectItem>
+                <SelectItem value="satellite">Satellites ({allCameras.filter(c => c.type === 'satellite').length})</SelectItem>
+                <SelectItem value="aerial">Aerial ({allCameras.filter(c => c.type === 'aerial').length})</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Provider</label>
+            <Select value={filterProvider} onValueChange={setFilterProvider}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                <SelectItem value="all">All Providers</SelectItem>
+                {providers.map(provider => (
+                  <SelectItem key={provider} value={provider}>
+                    {provider} ({allCameras.filter(c => c.provider === provider).length})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Region/City Search</label>
+            <Input
+              placeholder="e.g. Tokyo, London, New York..."
+              value={filterRegion}
+              onChange={(e) => setFilterRegion(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="mt-3 text-xs text-muted-foreground">
+          Showing {filteredCameras.length} of {allCameras.length} camera feeds ({onlineCameras} online)
+        </div>
+      </Card>
+
       <div className="flex items-center gap-6 flex-wrap bg-card/50 p-3 rounded border border-border">
         <div className="flex items-center gap-2">
           <Switch checked={showAnnotations} onCheckedChange={setShowAnnotations} />
@@ -360,7 +446,14 @@ export function CollaborativeMap() {
           <Switch checked={showCameras} onCheckedChange={setShowCameras} />
           <label className="text-sm flex items-center gap-1">
             <Eye size={16} />
-            Camera Feeds ({onlineCameras} online)
+            Camera Feeds ({filteredCameras.length})
+          </label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch checked={showSatellites} onCheckedChange={setShowSatellites} />
+          <label className="text-sm flex items-center gap-1">
+            <Planet size={16} />
+            Satellite Orbits ({satellitePasses.length})
           </label>
         </div>
         <div className="flex items-center gap-2">
@@ -442,6 +535,57 @@ export function CollaborativeMap() {
                   </div>
                 </Popup>
               </Circle>
+            ))}
+
+            {showSatellites && satellitePasses.map(sat => (
+              <Marker
+                key={sat.id}
+                position={[sat.lat, sat.lng]}
+                icon={L.divIcon({
+                  className: 'custom-icon',
+                  html: `<div style="background-color: oklch(0.75 0.15 200); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-center; border: 2px solid oklch(0.85 0.10 200); box-shadow: 0 0 12px oklch(0.75 0.15 200 / 0.6);">
+                    <svg width="14" height="14" viewBox="0 0 256 256" fill="white"><path d="M245.66,77.66l-29.9,29.9C209.72,177.43,150.67,232,80,232c-14.52,0-26.49-2.3-35.58-6.84-7.33-3.67-10.33-7.5-11.08-8.72a8,8,0,0,1,3.85-11.93c.26-.1,24.24-9.31,39.47-26.84a110.93,110.93,0,0,1-21.88-24.2c-12.4-18.41-26.28-50.39-22-98.18a8,8,0,0,1,13.65-4.92c.35.35,33.28,33.1,73.54,43.72V88a47.87,47.87,0,0,1,14.36-34.3L167.67,20.34a8,8,0,0,1,11.31,0l60.94,60.61A8,8,0,0,1,245.66,77.66Z"></path></svg>
+                  </div>`,
+                  iconSize: [24, 24],
+                  iconAnchor: [12, 12]
+                })}
+              >
+                <Popup>
+                  <div className="p-2 min-w-[200px]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Planet size={16} weight="fill" />
+                      <h3 className="font-semibold text-sm">{sat.name}</h3>
+                    </div>
+                    <div className="text-xs space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Type:</span>
+                        <span className="font-mono">{sat.type}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Altitude:</span>
+                        <span className="font-mono">{sat.altitude} km</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Velocity:</span>
+                        <span className="font-mono">{sat.velocity.toFixed(2)} km/s</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Next Pass:</span>
+                        <span className="font-mono text-xs">{sat.nextPass.toLocaleTimeString()}</span>
+                      </div>
+                      {sat.noradId && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">NORAD ID:</span>
+                          <span className="font-mono">{sat.noradId}</span>
+                        </div>
+                      )}
+                    </div>
+                    <Badge className="mt-2 w-full justify-center" style={{ backgroundColor: 'oklch(0.70 0.20 145)', color: 'white' }}>
+                      {sat.status.toUpperCase()}
+                    </Badge>
+                  </div>
+                </Popup>
+              </Marker>
             ))}
 
             {showWeather && weatherData.map(weather => (
@@ -583,66 +727,74 @@ export function CollaborativeMap() {
               </Marker>
             ))}
 
-            {showCameras && cameraFeeds.map(camera => (
-              <Marker
-                key={camera.id}
-                position={[camera.lat, camera.lng]}
-                icon={L.divIcon({
-                  className: 'custom-icon',
-                  html: `<div style="background-color: ${getCameraStatusColor(camera.status)}; width: 28px; height: 28px; border-radius: 4px; display: flex; align-items: center; justify-center; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
-                    <svg width="16" height="16" viewBox="0 0 256 256" fill="white"><path d="M251.77,73a8,8,0,0,0-8.21.39L208,97.05V72a16,16,0,0,0-16-16H32A16,16,0,0,0,16,72V184a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V159l35.56,23.71A8,8,0,0,0,248,184a8,8,0,0,0,8-8V80A8,8,0,0,0,251.77,73ZM192,184H32V72H192V184Zm48-22.95-32-21.33V116.28L240,95Z"></path></svg>
-                  </div>`,
-                  iconSize: [28, 28],
-                  iconAnchor: [14, 14]
-                })}
-                eventHandlers={{
-                  click: () => {
-                    setSelectedCamera(camera)
-                    setCameraDialogOpen(true)
-                  }
-                }}
-              >
-                <Popup>
-                  <div className="p-2 min-w-[200px]">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold text-sm">{camera.name}</h3>
-                      <Badge 
-                        style={{ 
-                          backgroundColor: getCameraStatusColor(camera.status),
-                          color: 'white'
+            {showCameras && filteredCameras.map(camera => {
+              const iconColor = getCameraStatusColor(camera.status)
+              const cameraIcon = camera.type === 'traffic' || camera.type === 'ground' ? 
+                '<svg width="16" height="16" viewBox="0 0 256 256" fill="white"><path d="M240,112H229.2L201.42,49.5A16,16,0,0,0,186.8,40H69.2a16,16,0,0,0-14.62,9.5L26.8,112H16a8,8,0,0,0,0,16h8v80a16,16,0,0,0,16,16H64a16,16,0,0,0,16-16V192h96v16a16,16,0,0,0,16,16h24a16,16,0,0,0,16-16V128h8a8,8,0,0,0,0-16ZM69.2,56H186.8l24.89,56H44.31ZM64,208H40V192H64Zm128,0V192h24v16Zm24-32H40V128H216ZM56,152a8,8,0,0,1,8-8H80a8,8,0,0,1,0,16H64A8,8,0,0,1,56,152Zm112,0a8,8,0,0,1,8-8h16a8,8,0,0,1,0,16H176A8,8,0,0,1,168,152Z"></path></svg>' :
+                '<svg width="16" height="16" viewBox="0 0 256 256" fill="white"><path d="M251.77,73a8,8,0,0,0-8.21.39L208,97.05V72a16,16,0,0,0-16-16H32A16,16,0,0,0,16,72V184a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V159l35.56,23.71A8,8,0,0,0,248,184a8,8,0,0,0,8-8V80A8,8,0,0,0,251.77,73ZM192,184H32V72H192V184Zm48-22.95-32-21.33V116.28L240,95Z"></path></svg>'
+              
+              return (
+                <Marker
+                  key={camera.id}
+                  position={[camera.lat, camera.lng]}
+                  icon={L.divIcon({
+                    className: 'custom-icon',
+                    html: `<div style="background-color: ${iconColor}; width: 28px; height: 28px; border-radius: 4px; display: flex; align-items: center; justify-center; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                      ${cameraIcon}
+                    </div>`,
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14]
+                  })}
+                  eventHandlers={{
+                    click: () => {
+                      setSelectedCamera(camera)
+                      setCameraDialogOpen(true)
+                    }
+                  }}
+                >
+                  <Popup>
+                    <div className="p-2 min-w-[200px]">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-semibold text-sm">{camera.name}</h3>
+                        <Badge 
+                          style={{ 
+                            backgroundColor: getCameraStatusColor(camera.status),
+                            color: 'white'
+                          }}
+                        >
+                          {camera.status.toUpperCase()}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-gray-600 mb-1">Type: {camera.type}</p>
+                      <p className="text-xs text-gray-600 mb-1">Provider: {camera.provider}</p>
+                      <p className="text-xs text-gray-500 font-mono">ID: {camera.id}</p>
+                      <Button 
+                        size="sm" 
+                        className="w-full mt-2"
+                        onClick={() => {
+                          setSelectedCamera(camera)
+                          setCameraDialogOpen(true)
                         }}
                       >
-                        {camera.status.toUpperCase()}
-                      </Badge>
+                        View Feed
+                      </Button>
                     </div>
-                    <p className="text-xs text-gray-600 mb-1">Type: {camera.type}</p>
-                    <p className="text-xs text-gray-600 mb-1">Provider: {camera.provider}</p>
-                    <p className="text-xs text-gray-500 font-mono">ID: {camera.id}</p>
-                    <Button 
-                      size="sm" 
-                      className="w-full mt-2"
-                      onClick={() => {
-                        setSelectedCamera(camera)
-                        setCameraDialogOpen(true)
-                      }}
-                    >
-                      View Feed
-                    </Button>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
+                  </Popup>
+                </Marker>
+              )
+            })}
           </MapContainer>
         )}
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <AnimatePresence>
           {[
             { key: 'events', label: 'Total Events', value: events.length, color: 'oklch(0.75 0.15 200)' },
-            { key: 'cameras', label: 'Camera Feeds', value: cameraFeeds.length, color: 'oklch(0.70 0.20 145)' },
-            { key: 'online', label: 'Cameras Online', value: onlineCameras, color: 'oklch(0.70 0.20 145)' },
-            { key: 'threats', label: 'High Threat Zones', value: filteredThreats.length, color: 'oklch(0.75 0.15 40)' }
+            { key: 'webcams', label: 'Webcams', value: webcamCount, color: 'oklch(0.70 0.20 145)' },
+            { key: 'traffic', label: 'Traffic Cameras', value: trafficCount, color: 'oklch(0.75 0.18 80)' },
+            { key: 'satellites', label: 'Satellites', value: satelliteCount + satellitePasses.length, color: 'oklch(0.75 0.15 40)' },
+            { key: 'threats', label: 'High Threat Zones', value: filteredThreats.length, color: 'oklch(0.60 0.22 25)' }
           ].map(({ key, label, value, color }) => (
             <motion.div
               key={key}
@@ -874,7 +1026,7 @@ export function CollaborativeMap() {
           <div>
             <h3 className="font-semibold text-sm mb-1">Advanced Intelligence Features</h3>
             <p className="text-xs text-muted-foreground">
-              Double-click the map to add annotations. Click camera markers to view live webcam feeds from around the world—over {cameraFeeds.length} feeds available including Abbey Road, Times Square, Tokyo, and more. Toggle weather overlay for environmental analysis. Enable threat predictions to visualize high-risk zones based on historical data patterns. Use the Export PDF button to generate comprehensive intelligence reports including all annotations, ML predictions, and threat assessments.
+              This platform integrates {allCameras.length}+ camera feeds including {webcamCount} live webcams, {trafficCount} traffic cameras from major cities worldwide, and {satelliteCount} satellite imagery feeds with real orbital data from {satellitePasses.length} earth observation satellites. Filter cameras by region, provider, or type. Double-click the map to add team annotations. Toggle satellite orbits to track {satellitePasses.length} real-time satellite positions including Sentinel-2, Landsat 8/9, and NOAA weather satellites. Enable threat predictions to visualize high-risk zones based on historical data patterns. Use the Export PDF button to generate comprehensive intelligence reports including all annotations, ML predictions, and threat assessments.
             </p>
           </div>
         </div>
