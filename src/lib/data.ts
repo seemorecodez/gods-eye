@@ -22,8 +22,8 @@ export const dataSources: DataSource[] = [
   {
     id: 'ds3',
     name: 'Google Earth Engine',
-    status: 'warning',
-    lastSync: '45 minutes ago',
+    status: 'active',
+    lastSync: '3 minutes ago',
     recordCount: 2341890,
     coverageArea: 'Global',
     repository: 'giswqs/geemap'
@@ -40,8 +40,8 @@ export const dataSources: DataSource[] = [
   {
     id: 'ds5',
     name: 'Conflict Analysis DB',
-    status: 'critical',
-    lastSync: '2 hours ago',
+    status: 'active',
+    lastSync: '4 minutes ago',
     recordCount: 45231,
     coverageArea: 'Sub-Saharan Africa',
     repository: 'datapartnership/acled_conflict_analysis'
