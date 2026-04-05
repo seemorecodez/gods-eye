@@ -1,19 +1,19 @@
 import { useState } from 'react'
 import { useKV } from '@github/spark/hooks'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/but
+import { Separator } from '@/components/ui/sepa
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { 
-  Brain, 
-  Sparkle,
-  Network,
-  Eye,
+  Network
   Target,
-  ChartBar,
-  ArrowsClockwise,
+  ArrowsCl
+} from '@p
+import
+interface
+  metric: s
+
   Trash
 } from '@phosphor-icons/react'
 import { toast } from 'sonner'
@@ -30,38 +30,38 @@ interface EmergentPattern {
   probability: number
   timeframe: string
   correlations: DataDomain[]
-  fusionChain: string[]
-  confidence: number
-  recommendation: string
-  timestamp: Date
-  modelVersion: string
-  trainingIterations: number
-}
-
-interface ModelMetrics {
-  totalPatterns: number
-  avgProbability: number
   retrainCount: number
-  lastRetrain: Date
   dataPoints: number
-  accuracyScore: number
 }
+const DATA_DOMAIN
+  { domain: 'Signals I
+  { domain: 'Economic Intell
+ 
 
-const DATA_DOMAINS = [
-  { domain: 'Imagery Intelligence', sources: ['Sentinel-2', 'Landsat-8', 'Planet Labs'], capabilities: 'Infrastructure detection, change analysis' },
-  { domain: 'Signals Intelligence', sources: ['AIS', 'Radio Intercepts', 'Cellular Traffic'], capabilities: 'Movement patterns, communications analysis' },
-  { domain: 'Cyber Intelligence', sources: ['Social Media', 'Dark Web', 'Forums'], capabilities: 'Sentiment analysis, threat indicators' },
-  { domain: 'Economic Intelligence', sources: ['Trade Data', 'Night Lights', 'Supply Chains'], capabilities: 'Economic activity, resource flows' },
-  { domain: 'Environmental Intelligence', sources: ['Weather', 'Vegetation Index', 'Water Bodies'], capabilities: 'Climate impacts, resource stress' },
-  { domain: 'Social Intelligence', sources: ['Demographics', 'Migration', 'Social Media'], capabilities: 'Population movements, grievances' }
-]
-
-export function EmergentPatternDetection() {
-  const [patterns, setPatterns] = useKV<EmergentPattern[]>('emergent-patterns', [])
-  const [modelMetrics, setModelMetrics] = useKV<ModelMetrics>('emergent-model-metrics', {
+  const [patterns, setPa
     totalPatterns: 0,
-    avgProbability: 0,
     retrainCount: 0,
+    dataPoints: 0,
+  })
+  const [isRetrainin
+
+ 
+
+        .slice(0, 3 + 
+      const prompt = (window.spark.llmPrompt as any)`You are an emergent pattern detection AI analyzing multi-domain intelligence data.
+Selected intelligence domains for fusion:
+
+- title: Brief title of the emergent pattern (string)
+- timeframe: When this pattern is occurring or will occur (string like "Next 72 hours", "Ongoing for 2 weeks")
+- confidence: Model confidence in this correlation (number 0.65-0.92)
+
+
+      const data = JSON.parse(result)
+      const correlationDomains: DataDomain[] = selectedDomains.map(domain => ({
+        metric: domain.capabilities
+
+        id: `pattern-$
+        title: data.
     lastRetrain: new Date(),
     dataPoints: 0,
     accuracyScore: 0.82
@@ -77,7 +77,7 @@ export function EmergentPatternDetection() {
         .sort(() => Math.random() - 0.5)
         .slice(0, 3 + Math.floor(Math.random() * 3))
 
-      const prompt = (window.spark.llmPrompt as any)`You are an emergent pattern detection AI analyzing multi-domain intelligence data.
+      const prompt = spark.llmPrompt`You are an emergent pattern detection AI analyzing multi-domain intelligence data.
 
 Selected intelligence domains for fusion:
 ${selectedDomains.map(d => `- ${d.domain}: ${d.capabilities}`).join('\n')}
@@ -92,7 +92,7 @@ Generate a realistic emergent pattern that correlates these domains. Return as J
 
 Make it realistic for geospatial intelligence analysis.`
 
-      const result = await window.spark.llm(prompt, 'gpt-4o-mini', true)
+      const result = await spark.llm(prompt, 'gpt-4o-mini', true)
       const data = JSON.parse(result)
 
       const correlationDomains: DataDomain[] = selectedDomains.map(domain => ({
@@ -155,7 +155,7 @@ Make it realistic for geospatial intelligence analysis.`
     try {
       const patternCount = patterns?.length || 0
       
-      const prompt = (window.spark.llmPrompt as any)`You are retraining an emergent pattern detection model based on new conflict data.
+      const prompt = spark.llmPrompt`You are retraining an emergent pattern detection model based on new conflict data.
 
 Current model has analyzed ${patternCount} patterns and ${modelMetrics?.dataPoints || 0} data points.
 
@@ -167,7 +167,7 @@ Generate model retraining results as JSON:
 
 Make it realistic for ML model retraining.`
 
-      const result = await window.spark.llm(prompt, 'gpt-4o-mini', true)
+      const result = await spark.llm(prompt, 'gpt-4o-mini', true)
       const data = JSON.parse(result)
 
       clearInterval(progressInterval)
@@ -235,8 +235,8 @@ Make it realistic for ML model retraining.`
           <div>
             <h2 className="text-2xl font-bold text-foreground">EMERGENT PATTERN DETECTION</h2>
             <p className="text-sm text-muted-foreground">Multi-domain fusion discovering non-obvious correlations</p>
-          </div>
-        </div>
+            </p>
+
       </div>
 
       <Card className="p-6 border-border bg-card/50">
@@ -259,229 +259,229 @@ Make it realistic for ML model retraining.`
           </div>
         </div>
 
-        <Separator className="mb-4" />
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="border border-border rounded p-4 bg-muted/20">
-            <div className="flex items-center justify-between mb-2">
-              <ChartBar size={16} className="text-accent" weight="fill" />
-              <p className="text-xs text-muted-foreground">Patterns</p>
-            </div>
-            <p className="text-2xl font-bold text-foreground">
-              {modelMetrics?.totalPatterns || 0}
-            </p>
-          </div>
-
-          <div className="border border-border rounded p-4 bg-muted/20">
-            <div className="flex items-center justify-between mb-2">
-              <Brain size={16} className="text-accent" weight="fill" />
-              <p className="text-xs text-muted-foreground">Accuracy</p>
-            </div>
-            <p className="text-2xl font-bold text-foreground">
-              {((modelMetrics?.accuracyScore || 0.82) * 100).toFixed(1)}%
-            </p>
-          </div>
-
-          <div className="border border-border rounded p-4 bg-muted/20">
-            <div className="flex items-center justify-between mb-2">
-              <Target size={16} className="text-accent" weight="fill" />
-              <p className="text-xs text-muted-foreground">Avg Probability</p>
-            </div>
-            <p className="text-2xl font-bold text-foreground">
-              {((modelMetrics?.avgProbability || 0) * 100).toFixed(0)}%
-            </p>
-          </div>
-
-          <div className="border border-border rounded p-4 bg-muted/20">
-            <div className="flex items-center justify-between mb-2">
-              <Eye size={16} className="text-accent" weight="fill" />
-              <p className="text-xs text-muted-foreground">Data Points</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-2xl font-bold text-foreground">
-                {(modelMetrics?.dataPoints || 0).toLocaleString()}
-              </p>
-              <div className="text-xs text-muted-foreground">
-                Model v{(modelMetrics?.retrainCount || 0) + 1}.0
-              </div>
-            </div>
-          </div>
         </div>
 
-        <div className="space-y-3">
-          <div className="flex gap-2">
             <Button 
-              onClick={detectPattern} 
               disabled={isDetecting || isRetraining}
-              className="flex-1"
             >
-              {isDetecting ? (
                 <>
-                  <ArrowsClockwise size={18} className="mr-2 animate-spin" />
                   Analyzing...
+              ) : 
+                  <Sparkle size={18} className="mr-2" weight="
                 </>
-              ) : (
-                <>
-                  <Sparkle size={18} className="mr-2" weight="fill" />
-                  Detect Emergent Pattern
-                </>
-              )}
-            </Button>
-            <Button 
-              onClick={retrainModel} 
-              disabled={isDetecting || isRetraining}
-              variant="secondary"
-            >
-              <ArrowsClockwise size={18} className={isRetraining ? "animate-spin" : ""} />
-            </Button>
-            <Button 
-              onClick={clearPatterns} 
-              disabled={isDetecting || isRetraining || !patterns || patterns.length === 0}
-              variant="outline"
-            >
-              <Trash size={18} />
-            </Button>
-          </div>
+            </Bu
+              on
 
-          {isRetraining && (
+              <ArrowsClockwise size={18} className={isRetraining ? "anim
+            <Button 
+              disabled={isDetecting || isRetraining || !patterns || pat
+            >
+            </Butt
+
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Retraining model...</span>
-                <span>{retrainProgress.toFixed(0)}%</span>
-              </div>
-              <Progress value={retrainProgress} className="h-2" />
-            </div>
-          )}
-        </div>
-      </Card>
+                
+              </
 
-      <div>
-        <h3 className="text-lg font-semibold text-foreground mb-3">Detected Patterns</h3>
-        <ScrollArea className="h-[600px] pr-4">
+        </div>
+
+        <h3 className="text-lg font-semibold text-foreground mb-3">Detec
           {!patterns || patterns.length === 0 ? (
-            <Card className="p-8 text-center border-dashed">
-              <p className="text-muted-foreground mb-2">No emergent patterns detected yet</p>
-              <p className="text-sm text-muted-foreground">
-                Click &quot;Detect Emergent Pattern&quot; to discover multi-domain correlations
-              </p>
+              <p c
+                Click &quot;Detect Emergent Pattern&quot; to d
             </Card>
-          ) : (
-            <AnimatePresence>
-              <div className="space-y-4">
-                {patterns.map((pattern) => (
-                  <motion.div
-                    key={pattern.id}
-                    initial={{ opacity: 0, y: -20 }}
+            <Ani
+                
+
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 20 }}
                     transition={{ duration: 0.3 }}
-                  >
-                    <Card className={`p-5 border ${getProbabilityBg(pattern.probability)}`}>
-                      <div className="space-y-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge variant="outline" className="text-xs">
-                                {pattern.modelVersion}
+                    <Card className={`p-5 border ${getProbabilityBg(p
+                        <div className="flex items-start justify-between g
+                  
+                                {patter
+                              <Badge variant="secondary" classNa
                               </Badge>
-                              <Badge variant="secondary" className="text-xs">
-                                {formatTimeAgo(pattern.timestamp)}
-                              </Badge>
-                            </div>
-                            <h4 className="font-bold text-foreground text-lg mb-1">
-                              {pattern.title}
+                  
                             </h4>
-                            <p className="text-sm text-muted-foreground">
                               {pattern.timeframe}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className={`text-3xl font-bold ${getProbabilityColor(pattern.probability)}`}>
-                              {(pattern.probability * 100).toFixed(0)}%
-                            </p>
-                            <p className="text-xs text-muted-foreground">probability</p>
-                          </div>
-                        </div>
+                    
+                  
+                
+              
 
-                        <Separator />
 
-                        <div>
-                          <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-2">
-                            <Network size={14} weight="bold" />
-                            Intelligence Domains Correlated
+                          <h4 classNam
+                    
+                          <div classNa
+                              <div key={idx} classNa
+                                
+             
+                              
+                  
+
+
+                   
+                   
+                  
+                              <div key={idx} className="flex items-sta
+                                <p classN
+                   
+                
+                     
+                    
+                            <Target s
                           </h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            {pattern.correlations.map((domain, idx) => (
-                              <div key={idx} className="flex items-start gap-2 text-xs">
-                                <span className="text-accent mt-0.5">▸</span>
-                                <div>
-                                  <p className="font-semibold text-foreground">{domain.name}</p>
-                                  <p className="text-muted-foreground">{domain.metric}</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
                         </div>
-
-                        <Separator />
-
-                        <div>
-                          <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-2">
-                            <Brain size={14} weight="bold" />
-                            Fusion Chain
-                          </h4>
-                          <div className="space-y-1">
-                            {pattern.fusionChain.map((step, idx) => (
-                              <div key={idx} className="flex items-start gap-2 text-xs">
-                                <span className="text-accent font-mono">{idx + 1}.</span>
-                                <p className="text-foreground">{step}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <Separator />
-
-                        <div>
-                          <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-2">
-                            <Target size={14} weight="bold" />
-                            Recommended Action
-                          </h4>
-                          <p className="text-sm text-foreground">{pattern.recommendation}</p>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                          <div className="text-xs text-muted-foreground">
+             
                             Confidence: {(pattern.confidence * 100).toFixed(1)}%
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {pattern.trainingIterations.toLocaleString()} iterations
-                          </div>
-                        </div>
+                     
+                    
                       </div>
-                    </Card>
                   </motion.div>
-                ))}
               </div>
-            </AnimatePresence>
           )}
-        </ScrollArea>
       </div>
+      <Card className
+          <Brain
 
-      <Card className="p-6 bg-muted/20 border-border">
-        <div className="flex items-start gap-3">
-          <Brain size={24} className="text-accent mt-1" weight="fill" />
-          <div>
-            <h3 className="font-semibold text-foreground mb-2">How Emergent Pattern Detection Works</h3>
-            <p className="text-xs text-muted-foreground">
-              The system analyzes multiple intelligence domains simultaneously (imagery from satellites, signals from communications, 
-              cyber data from social media, economic data like trade and night lights, environmental factors like weather, and social 
-              demographics). Using machine learning, it identifies non-obvious correlations that human analysts might miss, revealing 
-              emerging threats or events before they fully develop.
+              The system ana
+              demographics). Using mach
             </p>
-          </div>
         </div>
-      </Card>
     </div>
-  )
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
