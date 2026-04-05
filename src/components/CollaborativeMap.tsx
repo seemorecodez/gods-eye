@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useKV } from '@github/spark/hooks'
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap, useMapEvents, Rectangle } from 'react-leaflet'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { MapEvent, MapAnnotation, CameraFeed } from '@/lib/types'
+import { Switch } from '@/components/ui/switch'
+import { Progress } from '@/components/ui/progress'
+import { MapEvent, MapAnnotation, CameraFeed, WeatherData, ThreatPrediction, MLPrediction } from '@/lib/types'
 import { fetchAllRepositories } from '@/lib/github-api'
-import { MapPin, Target, Crosshair, ChartLine, ChatCircle, Video, Eye, PushPin, X } from '@phosphor-icons/react'
+import { generate300PlusCameraFeeds } from '@/lib/camera-generator'
+import { fetchGlobalWeatherGrid } from '@/lib/weather-api'
+import { generateThreatPredictions } from '@/lib/threat-analysis'
+import { generatePDFReport } from '@/lib/pdf-export'
+import { MapPin, Target, Crosshair, ChartLine, ChatCircle, Video, Eye, PushPin, X, CloudRain, Warning, FilePdf, Spinner } from '@phosphor-icons/react'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -50,92 +55,107 @@ export function CollaborativeMap() {
   const [events, setEvents] = useState<MapEvent[]>([])
   const [annotations, setAnnotations] = useKV<MapAnnotation[]>("map-annotations", [])
   const [cameraFeeds, setCameraFeeds] = useState<CameraFeed[]>([])
+  const [weatherData, setWeatherData] = useState<WeatherData[]>([])
+  const [threatPredictions, setThreatPredictions] = useState<ThreatPrediction[]>([])
+  const [mlPredictions, setMLPredictions] = useKV<MLPrediction[]>("ml-predictions", [])
+  
   const [activeLayer, setActiveLayer] = useState<'all' | 'conflict' | 'satellite' | 'detection' | 'cameras'>('all')
   const [mapCenter, setMapCenter] = useState<[number, number]>([20, 0])
   const [loading, setLoading] = useState(true)
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  
   const [showAnnotations, setShowAnnotations] = useState(true)
   const [showCameras, setShowCameras] = useState(true)
+  const [showWeather, setShowWeather] = useState(false)
+  const [showThreats, setShowThreats] = useState(false)
+  
   const [annotationDialogOpen, setAnnotationDialogOpen] = useState(false)
   const [newAnnotation, setNewAnnotation] = useState<{ lat: number; lng: number } | null>(null)
   const [annotationContent, setAnnotationContent] = useState('')
   const [annotationType, setAnnotationType] = useState<'note' | 'alert' | 'observation'>('note')
+  
   const [selectedCamera, setSelectedCamera] = useState<CameraFeed | null>(null)
   const [cameraDialogOpen, setCameraDialogOpen] = useState(false)
+  
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     async function loadRealData() {
-      const repos = await fetchAllRepositories()
-      
-      const activityData: RepoActivity[] = [
-        { repo: 'acled', lat: 8.7832, lng: 34.5085, activity: 0 },
-        { repo: 'COVID-19', lat: 39.9042, lng: 116.4074, activity: 0 },
-        { repo: 'geemap', lat: 37.7749, lng: -122.4194, activity: 0 },
-        { repo: 'sentinelsat', lat: 52.5200, lng: 13.4050, activity: 0 },
-        { repo: 'ultralytics', lat: 40.7128, lng: -74.0060, activity: 0 },
-        { repo: 'kepler.gl', lat: 37.7749, lng: -122.4194, activity: 0 },
-        { repo: 'folium', lat: 48.8566, lng: 2.3522, activity: 0 },
-        { repo: 'streamlit', lat: 37.7749, lng: -122.4194, activity: 0 }
-      ]
-
-      repos.forEach(repo => {
-        const activity = activityData.find(a => repo.name.includes(a.repo))
-        if (activity) {
-          activity.activity = repo.stars || 0
-        }
-      })
-
-      const generatedEvents: MapEvent[] = []
-      const generatedCameras: CameraFeed[] = []
-      
-      activityData.forEach((activity, idx) => {
-        const repo = repos.find(r => r.name.includes(activity.repo))
-        if (!repo) return
-
-        const types: MapEvent['type'][] = ['conflict', 'satellite', 'detection', 'change']
-        const severities: MapEvent['severity'][] = ['low', 'medium', 'high', 'critical']
+      try {
+        setLoadingProgress(10)
+        const repos = await fetchAllRepositories()
+        setLoadingProgress(20)
         
-        const eventCount = Math.min(Math.floor(activity.activity / 5000) + 1, 5)
+        const activityData: RepoActivity[] = [
+          { repo: 'acled', lat: 8.7832, lng: 34.5085, activity: 0 },
+          { repo: 'COVID-19', lat: 39.9042, lng: 116.4074, activity: 0 },
+          { repo: 'geemap', lat: 37.7749, lng: -122.4194, activity: 0 },
+          { repo: 'sentinelsat', lat: 52.5200, lng: 13.4050, activity: 0 },
+          { repo: 'ultralytics', lat: 40.7128, lng: -74.0060, activity: 0 },
+          { repo: 'kepler.gl', lat: 37.7749, lng: -122.4194, activity: 0 },
+          { repo: 'folium', lat: 48.8566, lng: 2.3522, activity: 0 },
+          { repo: 'streamlit', lat: 37.7749, lng: -122.4194, activity: 0 }
+        ]
+
+        repos.forEach(repo => {
+          const activity = activityData.find(a => repo.name.includes(a.repo))
+          if (activity) {
+            activity.activity = repo.stars || 0
+          }
+        })
+
+        const generatedEvents: MapEvent[] = []
         
-        for (let i = 0; i < eventCount; i++) {
-          const latOffset = (Math.random() - 0.5) * 20
-          const lngOffset = (Math.random() - 0.5) * 20
-          
-          generatedEvents.push({
-            id: `${activity.repo}-${idx}-${i}`,
-            type: types[Math.floor(Math.random() * types.length)],
-            lat: activity.lat + latOffset,
-            lng: activity.lng + lngOffset,
-            title: `${repo.name} Data Point ${i + 1}`,
-            description: repo.description,
-            severity: severities[Math.min(Math.floor(activity.activity / 10000), 3)],
-            timestamp: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000),
-            repository: repo.fullName
-          })
-        }
+        activityData.forEach((activity, idx) => {
+          const repo = repos.find(r => r.name.includes(activity.repo))
+          if (!repo) return
 
-        if (Math.random() > 0.5) {
-          const cameraLatOffset = (Math.random() - 0.5) * 10
-          const cameraLngOffset = (Math.random() - 0.5) * 10
-          const cameraTypes: CameraFeed['type'][] = ['satellite', 'ground', 'aerial']
-          const cameraType = cameraTypes[Math.floor(Math.random() * cameraTypes.length)]
+          const types: MapEvent['type'][] = ['conflict', 'satellite', 'detection', 'change']
+          const severities: MapEvent['severity'][] = ['low', 'medium', 'high', 'critical']
           
-          generatedCameras.push({
-            id: `cam-${activity.repo}-${idx}`,
-            name: `${activity.repo.toUpperCase()} CAM ${idx + 1}`,
-            lat: activity.lat + cameraLatOffset,
-            lng: activity.lng + cameraLngOffset,
-            streamUrl: `rtsp://stream.example.com/${activity.repo}`,
-            status: Math.random() > 0.2 ? 'online' : 'offline',
-            lastFrame: new Date(Date.now() - Math.random() * 60000),
-            provider: repo.name,
-            type: cameraType
-          })
-        }
-      })
+          const eventCount = Math.min(Math.floor(activity.activity / 5000) + 1, 5)
+          
+          for (let i = 0; i < eventCount; i++) {
+            const latOffset = (Math.random() - 0.5) * 20
+            const lngOffset = (Math.random() - 0.5) * 20
+            
+            generatedEvents.push({
+              id: `${activity.repo}-${idx}-${i}`,
+              type: types[Math.floor(Math.random() * types.length)],
+              lat: activity.lat + latOffset,
+              lng: activity.lng + lngOffset,
+              title: `${repo.name} Data Point ${i + 1}`,
+              description: repo.description,
+              severity: severities[Math.min(Math.floor(activity.activity / 10000), 3)],
+              timestamp: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000),
+              repository: repo.fullName
+            })
+          }
+        })
 
-      setEvents(generatedEvents)
-      setCameraFeeds(generatedCameras)
-      setLoading(false)
+        setEvents(generatedEvents)
+        setLoadingProgress(40)
+
+        const cameras = generate300PlusCameraFeeds()
+        setCameraFeeds(cameras)
+        setLoadingProgress(60)
+
+        const weather = await fetchGlobalWeatherGrid(40)
+        setWeatherData(weather)
+        setLoadingProgress(80)
+
+        const threats = await generateThreatPredictions(generatedEvents, 40)
+        setThreatPredictions(threats)
+        setLoadingProgress(100)
+
+        setLoading(false)
+        toast.success(`Loaded ${cameras.length} camera feeds, ${weather.length} weather points, and ${threats.length} threat zones`)
+      } catch (error) {
+        console.error('Error loading data:', error)
+        setLoading(false)
+        toast.error('Failed to load some data')
+      }
     }
 
     loadRealData()
@@ -181,8 +201,31 @@ export function CollaborativeMap() {
     toast.success('Annotation deleted')
   }
 
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      await generatePDFReport({
+        annotations: annotations || [],
+        predictions: mlPredictions || [],
+        threatAnalysis: threatPredictions,
+        weatherData: showWeather ? weatherData : undefined
+      })
+      toast.success('PDF report generated successfully')
+      setExportDialogOpen(false)
+    } catch (error) {
+      toast.error('Failed to generate PDF report')
+      console.error(error)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const filteredEvents = events.filter(event => 
     activeLayer === 'all' || activeLayer === 'cameras' || event.type === activeLayer
+  )
+
+  const filteredThreats = threatPredictions.filter(t => 
+    t.threatLevel === 'high' || t.threatLevel === 'critical'
   )
 
   const annotationCount = annotations?.length || 0
@@ -220,6 +263,25 @@ export function CollaborativeMap() {
       case 'error': return 'oklch(0.75 0.18 80)'
     }
   }
+
+  const getThreatLevelColor = (level: ThreatPrediction['threatLevel']) => {
+    switch (level) {
+      case 'low': return 'oklch(0.70 0.20 145)'
+      case 'moderate': return 'oklch(0.75 0.18 80)'
+      case 'high': return 'oklch(0.75 0.15 40)'
+      case 'critical': return 'oklch(0.60 0.22 25)'
+    }
+  }
+
+  const getWeatherColor = (temp: number) => {
+    if (temp < 0) return 'oklch(0.65 0.18 240)'
+    if (temp < 10) return 'oklch(0.70 0.15 210)'
+    if (temp < 20) return 'oklch(0.75 0.12 180)'
+    if (temp < 30) return 'oklch(0.80 0.15 80)'
+    return 'oklch(0.70 0.20 40)'
+  }
+
+  const onlineCameras = cameraFeeds.filter(c => c.status === 'online').length
 
   return (
     <div className="space-y-4">
@@ -263,30 +325,57 @@ export function CollaborativeMap() {
           <Video size={16} className="mr-2" />
           Cameras ({cameraFeeds.length})
         </Button>
-        <Button
-          size="sm"
-          variant={showAnnotations ? 'default' : 'outline'}
-          onClick={() => setShowAnnotations(!showAnnotations)}
-        >
-          <ChatCircle size={16} className="mr-2" />
-          Annotations ({annotationCount})
-        </Button>
-        <Button
-          size="sm"
-          variant={showCameras ? 'default' : 'outline'}
-          onClick={() => setShowCameras(!showCameras)}
-        >
-          <Eye size={16} className="mr-2" />
-          Feeds
-        </Button>
+        <div className="flex items-center gap-2 ml-auto">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setExportDialogOpen(true)}
+          >
+            <FilePdf size={16} className="mr-2" />
+            Export PDF
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-6 flex-wrap bg-card/50 p-3 rounded border border-border">
+        <div className="flex items-center gap-2">
+          <Switch checked={showAnnotations} onCheckedChange={setShowAnnotations} />
+          <label className="text-sm flex items-center gap-1">
+            <ChatCircle size={16} />
+            Annotations ({annotationCount})
+          </label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch checked={showCameras} onCheckedChange={setShowCameras} />
+          <label className="text-sm flex items-center gap-1">
+            <Eye size={16} />
+            Camera Feeds ({onlineCameras} online)
+          </label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch checked={showWeather} onCheckedChange={setShowWeather} />
+          <label className="text-sm flex items-center gap-1">
+            <CloudRain size={16} />
+            Weather Overlay ({weatherData.length} points)
+          </label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch checked={showThreats} onCheckedChange={setShowThreats} />
+          <label className="text-sm flex items-center gap-1">
+            <Warning size={16} />
+            Threat Analysis ({filteredThreats.length} zones)
+          </label>
+        </div>
       </div>
 
       <Card className="p-0 overflow-hidden border-border">
         {loading ? (
-          <div className="h-[600px] flex items-center justify-center bg-card">
-            <div className="text-center">
-              <ChartLine size={48} className="mx-auto mb-4 text-accent animate-spin" />
-              <p className="text-muted-foreground">Loading collaborative map data...</p>
+          <div className="h-[600px] flex flex-col items-center justify-center bg-card">
+            <div className="text-center w-full max-w-md px-8">
+              <Spinner size={48} className="mx-auto mb-4 text-accent animate-spin" />
+              <p className="text-muted-foreground mb-4">Loading geospatial intelligence data...</p>
+              <Progress value={loadingProgress} className="w-full" />
+              <p className="text-xs text-muted-foreground mt-2">{loadingProgress}% complete</p>
             </div>
           </div>
         ) : (
@@ -344,6 +433,106 @@ export function CollaborativeMap() {
               </Circle>
             ))}
 
+            {showWeather && weatherData.map(weather => (
+              <Circle
+                key={weather.id}
+                center={[weather.lat, weather.lng]}
+                radius={200000}
+                pathOptions={{
+                  fillColor: getWeatherColor(weather.temperature),
+                  fillOpacity: 0.2,
+                  color: getWeatherColor(weather.temperature),
+                  weight: 1,
+                  opacity: 0.4
+                }}
+              >
+                <Popup>
+                  <div className="p-2 min-w-[180px]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CloudRain size={16} />
+                      <h3 className="font-semibold text-sm">Weather Data</h3>
+                    </div>
+                    <div className="text-xs space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Temperature:</span>
+                        <span className="font-mono">{weather.temperature}°C</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Conditions:</span>
+                        <span>{weather.conditions}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Wind:</span>
+                        <span className="font-mono">{weather.windSpeed} km/h @ {weather.windDirection}°</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Humidity:</span>
+                        <span className="font-mono">{weather.humidity}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Visibility:</span>
+                        <span className="font-mono">{weather.visibility} km</span>
+                      </div>
+                    </div>
+                  </div>
+                </Popup>
+              </Circle>
+            ))}
+
+            {showThreats && filteredThreats.map(threat => (
+              <Rectangle
+                key={threat.id}
+                bounds={[
+                  [threat.lat - 1, threat.lng - 1],
+                  [threat.lat + 1, threat.lng + 1]
+                ]}
+                pathOptions={{
+                  fillColor: getThreatLevelColor(threat.threatLevel),
+                  fillOpacity: 0.3,
+                  color: getThreatLevelColor(threat.threatLevel),
+                  weight: 3,
+                  opacity: 0.8,
+                  dashArray: '10, 5'
+                }}
+              >
+                <Popup>
+                  <div className="p-2 min-w-[250px]">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Warning size={16} weight="fill" />
+                        <h3 className="font-semibold text-sm">Threat Analysis</h3>
+                      </div>
+                      <Badge 
+                        style={{ 
+                          backgroundColor: getThreatLevelColor(threat.threatLevel),
+                          color: 'white'
+                        }}
+                      >
+                        {threat.threatLevel.toUpperCase()}
+                      </Badge>
+                    </div>
+                    <p className="text-xs mb-2">{threat.prediction}</p>
+                    <div className="text-xs space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Confidence:</span>
+                        <span className="font-mono">{(threat.confidence * 100).toFixed(1)}%</span>
+                      </div>
+                      {threat.factors.length > 0 && (
+                        <div className="mt-2">
+                          <span className="text-gray-600">Factors:</span>
+                          <ul className="list-disc list-inside ml-2 mt-1">
+                            {threat.factors.slice(0, 3).map((factor, idx) => (
+                              <li key={idx} className="text-xs">{factor}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Popup>
+              </Rectangle>
+            ))}
+
             {showAnnotations && (annotations || []).map(annotation => (
               <Marker
                 key={annotation.id}
@@ -389,11 +578,11 @@ export function CollaborativeMap() {
                 position={[camera.lat, camera.lng]}
                 icon={L.divIcon({
                   className: 'custom-icon',
-                  html: `<div style="background-color: ${getCameraStatusColor(camera.status)}; width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-center; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
-                    <svg width="18" height="18" viewBox="0 0 256 256" fill="white"><path d="M251.77,73a8,8,0,0,0-8.21.39L208,97.05V72a16,16,0,0,0-16-16H32A16,16,0,0,0,16,72V184a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V159l35.56,23.71A8,8,0,0,0,248,184a8,8,0,0,0,8-8V80A8,8,0,0,0,251.77,73ZM192,184H32V72H192V184Zm48-22.95-32-21.33V116.28L240,95Z"></path></svg>
+                  html: `<div style="background-color: ${getCameraStatusColor(camera.status)}; width: 28px; height: 28px; border-radius: 4px; display: flex; align-items: center; justify-center; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                    <svg width="16" height="16" viewBox="0 0 256 256" fill="white"><path d="M251.77,73a8,8,0,0,0-8.21.39L208,97.05V72a16,16,0,0,0-16-16H32A16,16,0,0,0,16,72V184a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V159l35.56,23.71A8,8,0,0,0,248,184a8,8,0,0,0,8-8V80A8,8,0,0,0,251.77,73ZM192,184H32V72H192V184Zm48-22.95-32-21.33V116.28L240,95Z"></path></svg>
                   </div>`,
-                  iconSize: [32, 32],
-                  iconAnchor: [16, 16]
+                  iconSize: [28, 28],
+                  iconAnchor: [14, 14]
                 })}
                 eventHandlers={{
                   click: () => {
@@ -417,7 +606,7 @@ export function CollaborativeMap() {
                     </div>
                     <p className="text-xs text-gray-600 mb-1">Type: {camera.type}</p>
                     <p className="text-xs text-gray-600 mb-1">Provider: {camera.provider}</p>
-                    <p className="text-xs text-gray-500">Last frame: {camera.lastFrame.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500 font-mono">ID: {camera.id}</p>
                     <Button 
                       size="sm" 
                       className="w-full mt-2"
@@ -440,9 +629,9 @@ export function CollaborativeMap() {
         <AnimatePresence>
           {[
             { key: 'events', label: 'Total Events', value: events.length, color: 'oklch(0.75 0.15 200)' },
-            { key: 'annotations', label: 'Team Annotations', value: annotationCount, color: 'oklch(0.75 0.18 80)' },
             { key: 'cameras', label: 'Camera Feeds', value: cameraFeeds.length, color: 'oklch(0.70 0.20 145)' },
-            { key: 'online', label: 'Cameras Online', value: cameraFeeds.filter(c => c.status === 'online').length, color: 'oklch(0.70 0.20 145)' }
+            { key: 'online', label: 'Cameras Online', value: onlineCameras, color: 'oklch(0.70 0.20 145)' },
+            { key: 'threats', label: 'High Threat Zones', value: filteredThreats.length, color: 'oklch(0.75 0.15 40)' }
           ].map(({ key, label, value, color }) => (
             <motion.div
               key={key}
@@ -547,8 +736,8 @@ export function CollaborativeMap() {
                   <span className="ml-2 font-medium">{selectedCamera.provider}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Last Frame:</span>
-                  <span className="ml-2 font-mono text-xs">{selectedCamera.lastFrame.toLocaleString()}</span>
+                  <span className="text-muted-foreground">Camera ID:</span>
+                  <span className="ml-2 font-mono text-xs">{selectedCamera.id}</span>
                 </div>
               </div>
               <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
@@ -556,7 +745,7 @@ export function CollaborativeMap() {
                   <div className="text-center">
                     <Video size={64} className="mx-auto mb-4 text-accent" weight="fill" />
                     <p className="text-sm text-muted-foreground">Live feed from {selectedCamera.name}</p>
-                    <p className="text-xs text-muted-foreground mt-1 font-mono">{selectedCamera.streamUrl}</p>
+                    <p className="text-xs text-muted-foreground mt-1 font-mono break-all px-4">{selectedCamera.streamUrl}</p>
                     <div className="mt-4 flex items-center justify-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
                       <span className="text-xs font-mono">LIVE</span>
@@ -565,7 +754,8 @@ export function CollaborativeMap() {
                 ) : (
                   <div className="text-center">
                     <Video size={64} className="mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Camera offline</p>
+                    <p className="text-sm text-muted-foreground">Camera {selectedCamera.status}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Last frame: {selectedCamera.lastFrame.toLocaleString()}</p>
                   </div>
                 )}
               </div>
@@ -577,14 +767,64 @@ export function CollaborativeMap() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Export Intelligence Report</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Generate a comprehensive PDF report including:
+            </p>
+            <ul className="text-sm space-y-2 ml-4">
+              <li className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-accent" />
+                Team Annotations ({annotationCount})
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-accent" />
+                ML Predictions ({(mlPredictions || []).length})
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-accent" />
+                Threat Analysis ({threatPredictions.length} zones)
+              </li>
+              {showWeather && (
+                <li className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-accent" />
+                  Weather Data ({weatherData.length} points)
+                </li>
+              )}
+            </ul>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setExportDialogOpen(false)} disabled={exporting}>
+                Cancel
+              </Button>
+              <Button onClick={handleExport} disabled={exporting}>
+                {exporting ? (
+                  <>
+                    <Spinner size={16} className="mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <FilePdf size={16} className="mr-2" />
+                    Generate PDF
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Card className="p-4 border-border bg-card/50">
         <div className="flex items-start gap-3">
           <PushPin size={20} className="text-accent mt-1" weight="fill" />
           <div>
-            <h3 className="font-semibold text-sm mb-1">Collaboration Tips</h3>
+            <h3 className="font-semibold text-sm mb-1">Advanced Intelligence Features</h3>
             <p className="text-xs text-muted-foreground">
-              Double-click anywhere on the map to add an annotation. Team members can view and collaborate on markers in real-time. 
-              Click camera icons to view live feeds from deployed surveillance systems.
+              Double-click the map to add annotations. Toggle weather overlay for environmental analysis. Enable threat predictions to visualize high-risk zones based on historical data patterns. Use the Export PDF button to generate comprehensive intelligence reports including all annotations, ML predictions, and threat assessments.
             </p>
           </div>
         </div>

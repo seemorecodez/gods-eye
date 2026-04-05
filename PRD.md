@@ -34,11 +34,11 @@ This platform integrates multiple data sources, AI processing layers, real-time 
 - **Success criteria**: Flow diagram is clear and animated, processing stages are accurately represented, users can trace data lineage
 
 ### Interactive Geospatial Map
-- **Functionality**: Global map interface with layered data visualization showing conflict events, satellite coverage areas, and detected changes
-- **Purpose**: Core intelligence interface where users can visually analyze spatial patterns and relationships in the data
-- **Trigger**: Accessible via "Map" navigation tab (primary interface)
-- **Progression**: User opens map → Selects data layers to overlay → Zooms to region of interest → Clicks markers for detailed event data → Filters by date range or event type → Exports selected data
-- **Success criteria**: Map is performant with multiple layers, markers cluster intelligently, filtering is instant, data tooltips are informative
+- **Functionality**: Global map interface with layered data visualization showing conflict events, satellite coverage areas, detected changes, real-time weather overlay, threat predictions, and 300+ camera feeds
+- **Purpose**: Core intelligence interface where users can visually analyze spatial patterns, environmental conditions, threat levels, and live surveillance data
+- **Trigger**: Accessible via "Collab Map" navigation tab (primary intelligence interface)
+- **Progression**: User opens map → Toggles data layers (events/weather/threats/cameras) → Zooms to region of interest → Clicks markers for detailed information → Double-clicks to add team annotations → Exports comprehensive PDF reports
+- **Success criteria**: Map loads 300+ camera feeds efficiently, weather overlay updates in real-time, threat zones display with confidence scores, PDF export includes all annotations and ML predictions
 
 ### Repository Integration Guide
 - **Functionality**: Step-by-step documentation showing how each GitHub repository in the stack contributes to the overall system
@@ -46,6 +46,34 @@ This platform integrates multiple data sources, AI processing layers, real-time 
 - **Trigger**: Accessible via "Guide" section or info icons throughout the interface
 - **Progression**: User selects a repository → Reads integration overview → Views code snippets → Sees example outputs → Links to full documentation
 - **Success criteria**: Integration steps are clear, code examples are syntax-highlighted, examples are realistic
+
+### Weather Overlay System
+- **Functionality**: Real-time global weather grid displaying temperature, wind, humidity, visibility, and atmospheric conditions across geographic regions
+- **Purpose**: Environmental intelligence layer for operational planning and threat assessment correlation
+- **Trigger**: Toggled via "Weather Overlay" switch on collaborative map
+- **Progression**: User enables weather layer → Grid of colored circles appears showing temperature zones → Clicks weather marker for detailed conditions → Correlates weather data with threat assessments
+- **Success criteria**: Weather grid covers global regions at 40km resolution, data updates reflect realistic conditions, color coding clearly indicates temperature zones
+
+### Threat Level Prediction System
+- **Functionality**: AI-powered threat analysis using historical event patterns to predict high-risk zones with confidence scores and contributing factors
+- **Purpose**: Proactive threat identification based on data-driven analysis of past incidents and current patterns
+- **Trigger**: Toggled via "Threat Analysis" switch on collaborative map
+- **Progression**: User enables threat layer → High/critical threat zones appear as color-coded rectangles → Clicks zone for threat level details → Reviews historical data trends → Views contributing risk factors → Exports threat assessment to PDF report
+- **Success criteria**: Threat predictions analyze historical events within 10-unit radius, confidence scores calculated from event density, factors list explains reasoning, historical trend data shows 90-day patterns
+
+### 300+ Camera Feed Network
+- **Functionality**: Comprehensive global surveillance network with 300+ camera feeds across major cities, borders, and strategic locations showing online/offline status
+- **Purpose**: Live visual intelligence layer providing real-time monitoring capabilities across critical infrastructure and high-activity zones
+- **Trigger**: Toggled via "Camera Feeds" switch, individual feeds clickable on map
+- **Progression**: User enables camera layer → 300+ camera icons appear globally → Filters by camera type (satellite/ground/aerial) → Clicks camera for live feed preview → Views camera metadata (ID, provider, status, last frame time) → Monitors online status indicators
+- **Success criteria**: Exactly 300+ cameras generated across 25 major cities plus border/satellite feeds, 75% show online status, cameras distributed realistically with city density, feed dialog shows stream URL and live status
+
+### PDF Intelligence Report Export
+- **Functionality**: Comprehensive report generation combining team annotations, ML predictions, threat assessments, and optional weather data into formatted PDF document
+- **Purpose**: Enable professional intelligence briefings and documentation for offline analysis and distribution
+- **Trigger**: "Export PDF" button on collaborative map interface
+- **Progression**: User clicks Export PDF → Selects report contents (annotations/predictions/threats/weather) → Reviews summary → Confirms generation → Browser print dialog opens with formatted report → User saves or prints PDF
+- **Success criteria**: PDF includes all selected data types, formatted with professional styling, includes metadata (timestamp, document ID, classification), threat levels clearly visualized, historical trend tables included, report opens in new window for printing
 
 ## Edge Case Handling
 

@@ -104,4 +104,34 @@ export interface CameraFeed {
   type: 'satellite' | 'ground' | 'aerial'
 }
 
+export interface WeatherData {
+  id: string
+  lat: number
+  lng: number
+  temperature: number
+  humidity: number
+  windSpeed: number
+  windDirection: number
+  conditions: string
+  visibility: number
+  pressure: number
+  timestamp: Date
+}
+
+export interface ThreatPrediction {
+  id: string
+  lat: number
+  lng: number
+  threatLevel: 'low' | 'moderate' | 'high' | 'critical'
+  confidence: number
+  factors: string[]
+  historicalData: {
+    date: Date
+    eventCount: number
+    severity: number
+  }[]
+  prediction: string
+  timestamp: Date
+}
+
 export type ViewMode = 'stack' | 'monitor' | 'pipeline' | 'map' | 'guide' | 'activity' | 'ml-predictions'
