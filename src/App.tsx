@@ -1,15 +1,29 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { RepositoryCard } from '@/components/RepositoryCard'
 import { DataSourceCard } from '@/components/DataSourceCard'
-import { PipelineStageCard } from '@/components/PipelineStageCard'
-import { repositories, dataSources, pipelineStages } from '@/lib/data'
-import { ViewMode } from '@/lib/types'
-import { Stack, Database, GitBranch, Globe, BookOpen, Eye } from '@phosphor-icons/react'
+import { InteractiveMap } from '@/components/InteractiveMap'
+import { PipelineSimulator } from '@/components/PipelineSimulator'
+import { ViewMode, Repository } from '@/lib/types'
+import { fetchAllRepositories } from '@/lib/github-api'
+import { dataSources } from '@/lib/data'
+import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner } from '@phosphor-icons/react'
 
 function App() {
   const [activeView, setActiveView] = useState<ViewMode>('stack')
+  const [repositories, setRepositories] = useState<Repository[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadRepositories() {
+      setLoading(true)
+      const repos = await fetchAllRepositories()
+      setRepositories(repos)
+      setLoading(false)
+    }
+    loadRepositories()
+  }, [])
 
   const dataRepos = repositories.filter(r => r.category === 'data')
   const aiRepos = repositories.filter(r => r.category === 'ai')
@@ -55,51 +69,66 @@ function App() {
           </TabsList>
 
           <TabsContent value="stack" className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">DATA COLLECTION LAYER</h2>
-              <p className="text-sm text-muted-foreground mb-4">Real-time conflict events, satellite imagery, and OSINT data sources</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {dataRepos.map(repo => (
-                  <RepositoryCard key={repo.id} repository={repo} />
-                ))}
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="text-center">
+                  <Spinner size={48} className="mx-auto mb-4 text-accent animate-spin" />
+                  <p className="text-muted-foreground">Loading live GitHub data...</p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground mb-2">DATA COLLECTION LAYER</h2>
+                  <p className="text-sm text-muted-foreground mb-4">Real-time conflict events, satellite imagery, and OSINT data sources</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {dataRepos.map(repo => (
+                      <RepositoryCard key={repo.id} repository={repo} />
+                    ))}
+                  </div>
+                </div>
 
-            <Separator className="bg-border" />
+                <Separator className="bg-border" />
 
-            <div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">AI/ML PROCESSING LAYER</h2>
-              <p className="text-sm text-muted-foreground mb-4">YOLOv8 detection, change detection, and deep learning techniques</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {aiRepos.map(repo => (
-                  <RepositoryCard key={repo.id} repository={repo} />
-                ))}
-              </div>
-            </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground mb-2">AI/ML PROCESSING LAYER</h2>
+                  <p className="text-sm text-muted-foreground mb-4">YOLOv8 detection, change detection, and deep learning techniques</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {aiRepos.map(repo => (
+                      <RepositoryCard key={repo.id} repository={repo} />
+                    ))}
+                  </div>
+                </div>
 
-            <Separator className="bg-border" />
+                <Separator className="bg-border" />
 
-            <div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">VISUALIZATION & DASHBOARD</h2>
-              <p className="text-sm text-muted-foreground mb-4">Interactive mapping, charting, and geospatial visualization tools</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {vizRepos.map(repo => (
-                  <RepositoryCard key={repo.id} repository={repo} />
-                ))}
-              </div>
-            </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground mb-2">VISUALIZATION & DASHBOARD</h2>
+                  <p className="text-sm text-muted-foreground mb-4">Interactive mapping, charting, and geospatial visualization tools</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {vizRepos.map(repo => (
+                      <RepositoryCard key={repo.id} repository={repo} />
+                    ))}
+                  </div>
+                </div>
 
-            <Separator className="bg-border" />
+                {infraRepos.length > 0 && (
+                  <>
+                    <Separator className="bg-border" />
 
-            <div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">INFRASTRUCTURE</h2>
-              <p className="text-sm text-muted-foreground mb-4">CI/CD automation, hosting, and cloud development environments</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {infraRepos.map(repo => (
-                  <RepositoryCard key={repo.id} repository={repo} />
-                ))}
-              </div>
-            </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-foreground mb-2">INFRASTRUCTURE</h2>
+                      <p className="text-sm text-muted-foreground mb-4">CI/CD automation, hosting, and cloud development environments</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {infraRepos.map(repo => (
+                          <RepositoryCard key={repo.id} repository={repo} />
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="monitor" className="space-y-6">
@@ -115,25 +144,16 @@ function App() {
           </TabsContent>
 
           <TabsContent value="pipeline" className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">PROCESSING PIPELINE</h2>
-              <p className="text-sm text-muted-foreground mb-4">AI/ML workflow from data ingestion to output generation</p>
-              <div className="grid grid-cols-1 gap-4">
-                {pipelineStages.map((stage, index) => (
-                  <PipelineStageCard key={stage.id} stage={stage} index={index} />
-                ))}
-              </div>
-            </div>
+            <PipelineSimulator />
           </TabsContent>
 
           <TabsContent value="map" className="space-y-6">
-            <div className="border border-border rounded-lg bg-card p-12 text-center">
-              <Globe size={64} className="mx-auto mb-4 text-muted-foreground" />
-              <h2 className="text-2xl font-bold text-foreground mb-2">INTERACTIVE MAP VIEW</h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                Global geospatial visualization interface with layered data overlays for conflict events, 
-                satellite coverage, and detected changes. Integration with Leaflet/Mapbox coming soon.
+            <div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">GEOSPATIAL DATA VISUALIZATION</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Interactive map with real-time event markers from GitHub repository activity
               </p>
+              <InteractiveMap />
             </div>
           </TabsContent>
 
@@ -170,6 +190,13 @@ function App() {
                     <span><strong className="text-foreground">Infrastructure:</strong> GitHub Actions for automation, Pages for hosting, Codespaces for development</span>
                   </li>
                 </ul>
+
+                <h3 className="text-xl font-semibold text-foreground mt-6 mb-3">Live Data Integration</h3>
+                <p className="text-muted-foreground mb-4">
+                  This platform integrates real-time data from the GitHub API to track repository 
+                  activity, stars, forks, and recent updates. The map view and AI pipeline simulator 
+                  use live data to generate dynamic geospatial visualizations and processing workflows.
+                </p>
 
                 <h3 className="text-xl font-semibold text-foreground mt-6 mb-3">Getting Started</h3>
                 <p className="text-muted-foreground">

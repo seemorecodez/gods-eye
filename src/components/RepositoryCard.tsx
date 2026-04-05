@@ -1,7 +1,7 @@
 import { Repository } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowSquareOut, GithubLogo, Star } from '@phosphor-icons/react'
+import { ArrowSquareOut, GithubLogo, Star, GitFork, Eye } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 
 interface RepositoryCardProps {
@@ -34,7 +34,7 @@ export function RepositoryCard({ repository }: RepositoryCardProps) {
           {repository.description}
         </p>
         
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <Badge variant="outline" className="text-xs">
               {repository.language}
@@ -45,9 +45,26 @@ export function RepositoryCard({ repository }: RepositoryCardProps) {
             </div>
           </div>
           <span className="text-xs text-muted-foreground">
-            Updated {repository.lastUpdated}
+            {repository.lastUpdated}
           </span>
         </div>
+        
+        {(repository.forks !== undefined || repository.watchers !== undefined) && (
+          <div className="flex items-center gap-4 text-xs text-muted-foreground pt-3 border-t border-border">
+            {repository.forks !== undefined && (
+              <div className="flex items-center gap-1">
+                <GitFork size={14} />
+                <span>{repository.forks.toLocaleString()} forks</span>
+              </div>
+            )}
+            {repository.watchers !== undefined && (
+              <div className="flex items-center gap-1">
+                <Eye size={14} />
+                <span>{repository.watchers.toLocaleString()} watchers</span>
+              </div>
+            )}
+          </div>
+        )}
       </Card>
     </motion.div>
   )

@@ -8,6 +8,11 @@ export interface Repository {
   language: string
   lastUpdated: string
   category: 'data' | 'ai' | 'viz' | 'infra'
+  watchers?: number
+  forks?: number
+  openIssues?: number
+  size?: number
+  pushedAt?: string
 }
 
 export interface DataSource {
@@ -27,6 +32,26 @@ export interface PipelineStage {
   processingTime: number
   accuracy: number
   throughput: string
+}
+
+export interface MapEvent {
+  id: string
+  type: 'conflict' | 'satellite' | 'detection' | 'change'
+  lat: number
+  lng: number
+  title: string
+  description: string
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  timestamp: Date
+  repository: string
+}
+
+export interface PipelineFlow {
+  id: string
+  sourceStage: number
+  targetStage: number
+  dataPoints: number
+  status: 'active' | 'complete'
 }
 
 export type ViewMode = 'stack' | 'monitor' | 'pipeline' | 'map' | 'guide'
