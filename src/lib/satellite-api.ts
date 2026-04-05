@@ -1,17 +1,17 @@
 import { CameraFeed } from './types'
 
+export interface SatellitePass {
+  id: string
   name: string
-  lng: numbe
-  velocity: nu
-  status: 'ac
-  noradId?: s
-
+  lat: number
+  lng: number
+  altitude: number
   velocity: number
   nextPass: Date
   status: 'active' | 'inactive'
   type: 'earth-observation' | 'weather' | 'communication' | 'military'
   noradId?: string
- 
+}
 
 const REAL_SATELLITES = [
   { name: 'Sentinel-2A', noradId: '40697', type: 'earth-observation' as const, orbitAlt: 786 },
@@ -30,38 +30,28 @@ const REAL_SATELLITES = [
   { name: 'Suomi NPP', noradId: '37849', type: 'earth-observation' as const, orbitAlt: 824 },
   { name: 'WorldView-3', noradId: '40115', type: 'earth-observation' as const, orbitAlt: 617 },
   { name: 'WorldView-4', noradId: '41848', type: 'earth-observation' as const, orbitAlt: 617 },
-      id: `sat-${sat.noradId}`,
-      lat: position.lat,
-      altitude: sat.orbitAlt,
-      nextPass,
-      type: sat.type,
- 
+]
 
-export async function generateSatelliteImageryFeeds(): Promise<CameraFeed[]> {
+function simulateOrbitPosition(sat: typeof REAL_SATELLITES[0], time: Date) {
+  const period = 90 + (sat.orbitAlt / 100)
+  const angle = (time.getTime() / (period * 60000)) * 2 * Math.PI
+  const inclination = 98.2 * (Math.PI / 180)
   
-    id: `${sat.id}-feed`,
-    lat: sat.lat,
+  return {
+    lat: Math.sin(inclination) * Math.sin(angle) * 90,
+    lng: ((angle * (180 / Math.PI)) % 360) - 180,
+    velocity: 7.5 + (800 - sat.orbitAlt) / 100
+  }
+}
+
+export async function fetchSatellitePasses(): Promise<SatellitePass[]> {
+  const now = new Date()
   
-    lastFrame: new Date(),
-  
-  }))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  return REAL_SATELLITES.map(sat => {
+    const position = simulateOrbitPosition(sat, now)
+    const nextPass = new Date(now.getTime() + Math.random() * 12 * 60 * 60 * 1000)
+    
+    return {
       id: `sat-${sat.noradId}`,
       name: sat.name,
       lat: position.lat,
@@ -92,3 +82,13 @@ export async function generateSatelliteImageryFeeds(): Promise<CameraFeed[]> {
     thumbnail: `https://earthobservatory.nasa.gov/ContentWOC/images/decadal/`
   }))
 }
+
+
+
+
+
+
+
+
+
+
