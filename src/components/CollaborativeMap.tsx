@@ -11,7 +11,7 @@ import { Progress } from '@/components/ui/progress'
 import { MapEvent, MapAnnotation, CameraFeed, WeatherData, ThreatPrediction, MLPrediction } from '@/lib/types'
 import { fetchAllRepositories } from '@/lib/github-api'
 import { generate300PlusCameraFeeds } from '@/lib/camera-generator'
-import { fetchGlobalWeatherGrid } from '@/lib/weather-api'
+import { generateWeatherGrid } from '@/lib/weather-api'
 import { generateThreatPredictions } from '@/lib/threat-analysis'
 import { generatePDFReport } from '@/lib/pdf-export'
 import { MapPin, Target, Crosshair, ChartLine, ChatCircle, Video, Eye, PushPin, X, CloudRain, Warning, FilePdf, Spinner } from '@phosphor-icons/react'
@@ -141,7 +141,7 @@ export function CollaborativeMap() {
         setCameraFeeds(cameras)
         setLoadingProgress(60)
 
-        const weather = await fetchGlobalWeatherGrid(40)
+        const weather = await generateWeatherGrid(40)
         setWeatherData(weather)
         setLoadingProgress(80)
 
