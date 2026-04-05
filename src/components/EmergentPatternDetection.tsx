@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { Button } from '@/components/ui/but
+import { useKV } from '@github/spark/hooks'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/se
-import { 
-  Spinner, 
-  TrendUp, 
+import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
 import { 
   Brain, 
   Spinner, 
@@ -14,54 +14,54 @@ import {
   Network,
   ChartBar,
   Eye,
-interface 
-  source: st
+  Sparkle,
+  Target
+} from '@phosphor-icons/react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { toast } from 'sonner'
+
+interface DataDomain {
+  name: string
+  source: string
+  metric: string
   value: string
-
-  id: string
-
-  correlations: DataDo
-  confidence: 
-  timestamp: Dat
-  trainingIterat
-
- 
-
-  dataPoints: number
 }
-const DATA_DOMA
-  { domain: 'Signals'
-  { domain: 'Econom
-  { domain: 'Social', source
 
-  const [patterns, s
-    totalPatterns: 0,
-    retrainCount:
-    dataPoints: 0,
-  })
- 
+interface EmergentPattern {
+  id: string
+  title: string
+  probability: number
+  timeframe: string
+  correlations: DataDomain[]
+  fusionChain: string[]
+  confidence: number
+  recommendation: string
+  timestamp: Date
+  modelVersion: string
+  trainingIterations: number
+}
 
-    setIsDetecting(true)
-      const numDomains 
-      const domainNames 
-      
+interface ModelMetrics {
+  totalPatterns: number
+  avgProbability: number
+  retrainCount: number
+  lastRetrain: Date
+  dataPoints: number
+  accuracyScore: number
+}
 
-Domains being fused:
-Generate a realistic em
--
+const DATA_DOMAINS = [
+  { domain: 'Imagery Intelligence', sources: ['Sentinel-2', 'Landsat-8', 'Planet Labs'], capabilities: 'Infrastructure detection, change analysis' },
+  { domain: 'Signals Intelligence', sources: ['AIS', 'Radio Intercepts', 'Cellular Traffic'], capabilities: 'Movement patterns, communications analysis' },
+  { domain: 'Cyber Intelligence', sources: ['Social Media', 'Dark Web', 'Forums'], capabilities: 'Sentiment analysis, threat indicators' },
+  { domain: 'Economic Intelligence', sources: ['Trade Data', 'Night Lights', 'Supply Chains'], capabilities: 'Economic activity, resource flows' },
+  { domain: 'Environmental Intelligence', sources: ['Weather', 'Vegetation Index', 'Water Bodies'], capabilities: 'Climate impacts, resource stress' },
+  { domain: 'Social Intelligence', sources: ['Demographics', 'Migration', 'Social Media'], capabilities: 'Population movements, grievances' }
+]
 
-- confidence: Model co
-Return a JSON object with these exact fields.`
-      const result = await window.spark.llm(prompt, 'gpt-4o-mini', true)
-
-        return {
-          source: domain.sources[Math.floor(Math.random() * domain.sources.length)],
-          value: `Correlated (${(0.7 + Math.random() * 0.25).toFixed(2)})`
- 
-
-        title: data.title,
-        timeframe: data.timeframe,
-        fusionChain: data.fusionChain,
+export function EmergentPatternDetection() {
+  const [patterns, setPatterns] = useKV<EmergentPattern[]>('emergent-patterns', [])
+  const [modelMetrics, setModelMetrics] = useKV<ModelMetrics>('emergent-model-metrics', {
     totalPatterns: 0,
     avgProbability: 0,
     retrainCount: 0,
@@ -81,7 +81,7 @@ Return a JSON object with these exact fields.`
       const domainNames = selectedDomains.map(d => d.domain).join(', ')
       const sources = selectedDomains.map(d => d.sources.join(', ')).join('; ')
       
-      const prompt = spark.llmPrompt`You are analyzing multi-domain intelligence data to detect emergent conflict patterns.
+      const prompt = (window.spark.llmPrompt as any)`You are analyzing multi-domain intelligence data to detect emergent conflict patterns.
 
 Data sources: ${sources}
 Domains being fused: ${domainNames}
@@ -96,7 +96,7 @@ Generate a realistic emergent pattern discovery as JSON:
 
 Return a JSON object with these exact fields.`
 
-      const result = await spark.llm(prompt, 'gpt-4o-mini', true)
+      const result = await window.spark.llm(prompt, 'gpt-4o-mini', true)
       const data = JSON.parse(result)
 
       const correlationDomains: DataDomain[] = selectedDomains.map(domain => {
@@ -161,7 +161,7 @@ Return a JSON object with these exact fields.`
     try {
       const patternCount = patterns?.length || 0
       
-      const prompt = spark.llmPrompt`You are retraining an emergent pattern detection model based on new conflict data.
+      const prompt = (window.spark.llmPrompt as any)`You are retraining an emergent pattern detection model based on new conflict data.
 
 Current model has analyzed ${patternCount} patterns and ${modelMetrics?.dataPoints || 0} data points.
 
@@ -173,7 +173,7 @@ Generate model retraining results as JSON:
 
 Make it realistic for ML model retraining.`
 
-      const result = await spark.llm(prompt, 'gpt-4o-mini', true)
+      const result = await window.spark.llm(prompt, 'gpt-4o-mini', true)
       const data = JSON.parse(result)
 
       clearInterval(progressInterval)
@@ -438,73 +438,61 @@ Make it realistic for ML model retraining.`
                           <Network size={14} className="text-accent" weight="bold" />
                           CORRELATED DATA DOMAINS
                         </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {pattern.correlations.map((corr, idx) => (
+                            <div key={idx} className="p-3 bg-muted/30 rounded border border-border/50">
+                              <div className="font-semibold text-xs text-foreground">{corr.name}</div>
+                              <div className="text-xs text-muted-foreground mb-1">{corr.source}</div>
+                              <div className="text-xs text-accent">{corr.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-2">
+                          <Brain size={14} className="text-accent" weight="fill" />
+                          FUSION REASONING CHAIN
+                        </h4>
+                        <div className="space-y-2">
+                          {pattern.fusionChain.map((step, idx) => (
+                            <div key={idx} className="flex items-start gap-2 text-xs">
+                              <span className="text-accent mt-0.5">{idx + 1}.</span>
+                              <span className="text-muted-foreground">{step}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="p-4 bg-accent/10 rounded border border-accent/30">
+                        <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-2">
+                          <Target size={14} className="text-accent" weight="fill" />
+                          RECOMMENDED ACTION
+                        </h4>
+                        <p className="text-sm text-foreground">{pattern.recommendation}</p>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          )}
+        </div>
+      </ScrollArea>
+
+      <Card className="p-4 border-border bg-muted/10">
+        <div className="flex items-start gap-3">
           <Brain size={20} className="text-accent mt-1" weight="fill" />
-            <h3 className="font-semibold text-sm mb-1">About Emergent 
-              This system uses multi-domain intelligence fusion to discover non-obvious correlation
-              economic data (trade, night lights), environmental factors (rainfall, v
-              improving accuracy with each retrain cycle. All patterns are persisted across sessions us
+          <div>
+            <h3 className="font-semibold text-sm mb-1">About Emergent Pattern Detection</h3>
+            <p className="text-xs text-muted-foreground">
+              This system uses multi-domain intelligence fusion to discover non-obvious correlations between imagery (satellite changes), signals (communications), cyber (social media), 
+              economic data (trade, night lights), environmental factors (rainfall, vegetation), and social indicators (migration, demographics). The ML model learns continuously, 
+              improving accuracy with each retrain cycle. All patterns are persisted across sessions using the Spark KV store.
+            </p>
           </div>
+        </div>
       </Card>
-  )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     </div>
   )
 }
