@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useKV } from '@github/spark/hooks'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/but
+import { ScrollArea } from '@/components/ui/scr
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
@@ -14,22 +14,22 @@ import {
   Network,
   ChartBar,
   Eye,
-  ArrowRight,
-  Sparkle
-} from '@phosphor-icons/react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { toast } from 'sonner'
+import { moti
 
-interface DataDomain {
   name: string
-  source: string
   metric: string
-  value: number | string
   timestamp: Date
-}
 
-interface EmergentPattern {
   id: string
+  probability:
+  correlations: 
+  confidence: nu
+  timestamp: Date
+  trainingIterati
+
+
+  retrainCount: number
+  dataPoints
   title: string
   probability: number
   timeframe: string
@@ -62,70 +62,70 @@ const DATA_DOMAINS = [
 
 export function EmergentPatternDetection() {
   const [patterns, setPatterns] = useKV<EmergentPattern[]>('emergent-patterns', [])
-  const [modelMetrics, setModelMetrics] = useKV<ModelMetrics>('pattern-model-metrics', {
-    totalPatterns: 0,
-    avgProbability: 0,
-    retrainCount: 0,
-    lastRetrain: new Date(),
-    dataPoints: 0,
-    accuracyScore: 0.82
-  })
-  const [isDetecting, setIsDetecting] = useState(false)
-  const [isRetraining, setIsRetraining] = useState(false)
-  const [retrainProgress, setRetrainProgress] = useState(0)
-
-  const detectEmergentPattern = async () => {
-    setIsDetecting(true)
-    try {
-      const selectedDomains = DATA_DOMAINS
-        .sort(() => 0.5 - Math.random())
-        .slice(0, 3 + Math.floor(Math.random() * 2))
-
       const domainNames = selectedDomains.map(d => d.domain).join(', ')
-      const sources = selectedDomains.map(d => d.sources.join(', ')).join('; ')
       
-      const prompt = (window.spark.llmPrompt as any)`You are an advanced AI system detecting emergent patterns across multiple intelligence domains.
 
-You are analyzing data from these domains: ${domainNames}
-Data sources: ${sources}
+Data sources: ${sour
+Generate a realistic emergen
+Return a JSON obje
+- probability: Probabil
+- co
+- recommendation: Specific actionable intelligence reco
 
-Generate a realistic emergent pattern detection that shows non-obvious correlations between these domains.
 
-Return a JSON object with:
-- title: A descriptive title of the pattern (string, e.g., "Port Congestion Cascade Effect")
-- probability: Probability of the predicted outcome (number 0.60-0.95)
-- timeframe: Time window for prediction (string, e.g., "within 60 days", "45-90 days")
-- correlationFactors: Array of 3-5 specific correlation factors, each showing domain + specific metric (array of strings, e.g., ["Port congestion: 340% above baseline (Economic)", "Fertilizer imports: -67% decline (Economic/Signals)", "Ethnic polarization index: 8.2/10 (Social)"])
-- fusionLogic: Step-by-step fusion chain showing how domains connect (array of 4-6 strings showing progression)
-- recommendation: Specific actionable intelligence recommendation (string)
-- confidence: Model confidence in this correlation (number 0.70-0.98)
 
-Make it realistic, specific, and show genuine multi-domain intelligence fusion.`
-
-      const result = await window.spark.llm(prompt, 'gpt-4o-mini', true)
-      const data = JSON.parse(result)
-
-      const correlationDomains: DataDomain[] = data.correlationFactors.map((factor: string, idx: number) => {
-        const [metric, domain] = factor.split('(')
+      const correlationDomains: DataDomain[] 
         return {
-          name: selectedDomains[idx % selectedDomains.length].domain,
-          source: selectedDomains[idx % selectedDomains.length].sources[0],
-          metric: metric.trim(),
-          value: `Correlated (${(0.7 + Math.random() * 0.25).toFixed(2)} R²)`,
-          timestamp: new Date()
+         
+          value: `Correlated (${(0.7 + Mat
+        }
+
+
+        probability: data.probability,
+        correlations: correlationDomains,
+      
+        timestamp: new Date(),
+
+
+      
+
+        retrainCount: current?.retrainCount || 0,
+
+      }))
+      toast.success(`Pattern detected: ${data.title}`, {
+      })
+      console.error('Error detecting pattern:', error)
+    } finally {
+    }
+
+    setIsRetraining(true)
+
+      setRetrainProgress((prev) => {
+
         }
       })
 
-      const pattern: EmergentPattern = {
-        id: `pattern-${Date.now()}`,
-        title: data.title,
-        probability: data.probability,
-        timeframe: data.timeframe,
-        correlations: correlationDomains,
-        fusionChain: data.fusionLogic,
-        confidence: data.confidence,
-        recommendation: data.recommendation,
-        timestamp: new Date(),
+      const patternCount = patterns?.length || 0
+      const prompt = (window.spark.llmPrompt as an
+Current model ha
+Generate model retraining results as JSON:
+- newCorrelationsFound: number of new correlation types discovered (number 
+- computeTime: training time in 
+Make it realistic for ML model retraining.`
+      const result = await wind
+
+      se
+
+      setModelMetrics((current) => ({
+        avgProbability: current?.avg
+        lastRetrain: new D
+        accuracyScore: newAccuracy
+
+        toast.success('Model retrained su
+        })
+        setRetrainProgress(0)
+    } catch (error) {
+      console.error('Error ret
         modelVersion: `v${(modelMetrics?.retrainCount || 0) + 1}.${Math.floor(Math.random() * 100)}`,
         trainingIterations: 1000 + Math.floor(Math.random() * 9000)
       }
@@ -169,7 +169,7 @@ Make it realistic, specific, and show genuine multi-domain intelligence fusion.`
     try {
       const patternCount = patterns?.length || 0
       
-      const prompt = (window.spark.llmPrompt as any)`You are retraining an emergent pattern detection model based on new conflict data.
+      const prompt = spark.llmPrompt`You are retraining an emergent pattern detection model based on new conflict data.
 
 Current model has analyzed ${patternCount} patterns and ${modelMetrics?.dataPoints || 0} data points.
 
@@ -181,7 +181,7 @@ Generate model retraining results as JSON:
 
 Make it realistic for ML model retraining.`
 
-      const result = await window.spark.llm(prompt, 'gpt-4o-mini', true)
+      const result = await spark.llm(prompt, 'gpt-4o-mini', true)
       const data = JSON.parse(result)
 
       clearInterval(progressInterval)
@@ -249,8 +249,8 @@ Make it realistic for ML model retraining.`
           <div>
             <h2 className="text-2xl font-bold text-foreground">EMERGENT PATTERN DETECTION</h2>
             <p className="text-sm text-muted-foreground">Multi-domain fusion discovering non-obvious correlations</p>
-          </div>
-        </div>
+        <Card cl
+            <s
       </div>
 
       <Card className="p-6 border-border bg-card/50">
@@ -329,7 +329,7 @@ Make it realistic for ML model retraining.`
             <Progress value={retrainProgress} className="h-2" />
           </div>
         )}
-      </Card>
+             
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4 border-border/50">
@@ -513,6 +513,6 @@ Make it realistic for ML model retraining.`
           </div>
         </div>
       </Card>
-    </div>
-  )
-}
+
+
+
