@@ -4,11 +4,14 @@ import { Separator } from '@/components/ui/separator'
 import { RepositoryCard } from '@/components/RepositoryCard'
 import { DataSourceCard } from '@/components/DataSourceCard'
 import { InteractiveMap } from '@/components/InteractiveMap'
+import { CollaborativeMap } from '@/components/CollaborativeMap'
 import { PipelineSimulator } from '@/components/PipelineSimulator'
+import { CommitActivityTimeline } from '@/components/CommitActivityTimeline'
+import { MLPredictionsVisualizer } from '@/components/MLPredictionsVisualizer'
 import { ViewMode, Repository } from '@/lib/types'
 import { fetchAllRepositories } from '@/lib/github-api'
 import { dataSources } from '@/lib/data'
-import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner } from '@phosphor-icons/react'
+import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner, GitCommit, Brain } from '@phosphor-icons/react'
 
 function App() {
   const [activeView, setActiveView] = useState<ViewMode>('stack')
@@ -48,23 +51,31 @@ function App() {
           <TabsList className="bg-card border border-border p-1">
             <TabsTrigger value="stack" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
               <Stack size={18} className="mr-2" />
-              Stack Explorer
+              Stack
             </TabsTrigger>
             <TabsTrigger value="monitor" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
               <Database size={18} className="mr-2" />
-              Data Monitor
+              Monitor
             </TabsTrigger>
             <TabsTrigger value="pipeline" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
               <GitBranch size={18} className="mr-2" />
-              AI Pipeline
+              Pipeline
+            </TabsTrigger>
+            <TabsTrigger value="activity" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+              <GitCommit size={18} className="mr-2" />
+              Activity
+            </TabsTrigger>
+            <TabsTrigger value="ml-predictions" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+              <Brain size={18} className="mr-2" />
+              ML Predictions
             </TabsTrigger>
             <TabsTrigger value="map" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
               <Globe size={18} className="mr-2" />
-              Map View
+              Collab Map
             </TabsTrigger>
             <TabsTrigger value="guide" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
               <BookOpen size={18} className="mr-2" />
-              Integration Guide
+              Guide
             </TabsTrigger>
           </TabsList>
 
@@ -147,13 +158,21 @@ function App() {
             <PipelineSimulator />
           </TabsContent>
 
+          <TabsContent value="activity" className="space-y-6">
+            <CommitActivityTimeline />
+          </TabsContent>
+
+          <TabsContent value="ml-predictions" className="space-y-6">
+            <MLPredictionsVisualizer />
+          </TabsContent>
+
           <TabsContent value="map" className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">GEOSPATIAL DATA VISUALIZATION</h2>
+              <h2 className="text-2xl font-bold text-foreground mb-2">COLLABORATIVE MAP WORKSPACE</h2>
               <p className="text-sm text-muted-foreground mb-4">
-                Interactive map with real-time event markers from GitHub repository activity
+                Team collaboration with annotations, real-time camera feeds, and geospatial data layers
               </p>
-              <InteractiveMap />
+              <CollaborativeMap />
             </div>
           </TabsContent>
 

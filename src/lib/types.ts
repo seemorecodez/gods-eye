@@ -54,4 +54,54 @@ export interface PipelineFlow {
   status: 'active' | 'complete'
 }
 
-export type ViewMode = 'stack' | 'monitor' | 'pipeline' | 'map' | 'guide'
+export interface CommitActivity {
+  id: string
+  repository: string
+  sha: string
+  message: string
+  author: string
+  timestamp: Date
+  filesChanged: number
+  additions: number
+  deletions: number
+}
+
+export interface MLPrediction {
+  id: string
+  modelName: string
+  inputType: string
+  prediction: string
+  confidence: number
+  timestamp: Date
+  metadata: {
+    processingTime: number
+    imageSize?: string
+    objectsDetected?: number
+    modelVersion?: string
+  }
+}
+
+export interface MapAnnotation {
+  id: string
+  lat: number
+  lng: number
+  author: string
+  content: string
+  timestamp: Date
+  type: 'note' | 'alert' | 'observation'
+  attachments?: string[]
+}
+
+export interface CameraFeed {
+  id: string
+  name: string
+  lat: number
+  lng: number
+  streamUrl: string
+  status: 'online' | 'offline' | 'error'
+  lastFrame: Date
+  provider: string
+  type: 'satellite' | 'ground' | 'aerial'
+}
+
+export type ViewMode = 'stack' | 'monitor' | 'pipeline' | 'map' | 'guide' | 'activity' | 'ml-predictions'
