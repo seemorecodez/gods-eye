@@ -75,6 +75,13 @@ This platform integrates multiple data sources, AI processing layers, real-time 
 - **Progression**: User clicks Export PDF → Selects report contents (annotations/predictions/threats/weather) → Reviews summary → Confirms generation → Browser print dialog opens with formatted report → User saves or prints PDF
 - **Success criteria**: PDF includes all selected data types, formatted with professional styling, includes metadata (timestamp, document ID, classification), threat levels clearly visualized, historical trend tables included, report opens in new window for printing
 
+### Emergent Pattern Detection
+- **Functionality**: Multi-domain intelligence fusion system that discovers non-obvious correlations across imagery, signals, cyber, economic, environmental, and social data sources, using continuous learning ML models to predict conflict events
+- **Purpose**: Uncover hidden causal chains and complex correlations that human analysts might miss by analyzing patterns across 6 disparate intelligence domains simultaneously
+- **Trigger**: Accessible via "Emergent Patterns" navigation tab
+- **Progression**: User opens emergent patterns view → Sees multi-domain data fusion overview → Clicks "Detect Emergent Pattern" → AI analyzes 3-5 domains simultaneously → System generates correlation chain with probability score → User reviews fusion logic showing step-by-step how domains connect → Reads actionable intelligence recommendation → Retrains model with "Retrain Model" button to improve accuracy → Filters patterns by region and confidence threshold
+- **Success criteria**: Each pattern shows specific correlations (e.g., "Port congestion + fertilizer shortage + ethnic polarization = 78% probability of violence within 60 days"), fusion chain explains domain interconnections, model retraining improves accuracy scores, all patterns persist across sessions with useKV, confidence and probability scores displayed prominently, patterns include realistic data from Sentinel-2, Landsat, ISS, ADS-B Exchange, AIS, Censored Planet, IODA, UN Comtrade, CHIRPS, MODIS, GDELT, and ACLED sources
+
 ## Edge Case Handling
 
 - **No Active Data Sources**: Display prominent empty state with instructions to configure API keys and data connections, show example data mode toggle

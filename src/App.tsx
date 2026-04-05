@@ -9,10 +9,11 @@ import { CollaborativeMapEnhanced as CollaborativeMap } from '@/components/Colla
 import { PipelineSimulator } from '@/components/PipelineSimulator'
 import { CommitActivityTimeline } from '@/components/CommitActivityTimeline'
 import { MLPredictionsVisualizer } from '@/components/MLPredictionsVisualizer'
+import { EmergentPatternDetection } from '@/components/EmergentPatternDetection'
 import { ViewMode, Repository } from '@/lib/types'
 import { fetchAllRepositories } from '@/lib/github-api'
 import { dataSources } from '@/lib/data'
-import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner, GitCommit, Brain } from '@phosphor-icons/react'
+import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner, GitCommit, Brain, Network } from '@phosphor-icons/react'
 
 function App() {
   const [activeView, setActiveView] = useState<ViewMode>('stack')
@@ -80,6 +81,10 @@ function App() {
             <TabsTrigger value="ml-predictions" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
               <Brain size={18} className="mr-2" />
               ML Predictions
+            </TabsTrigger>
+            <TabsTrigger value="emergent-patterns" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+              <Network size={18} className="mr-2" />
+              Emergent Patterns
             </TabsTrigger>
             <TabsTrigger value="map" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
               <Globe size={18} className="mr-2" />
@@ -176,6 +181,10 @@ function App() {
 
           <TabsContent value="ml-predictions" className="space-y-6">
             <MLPredictionsVisualizer />
+          </TabsContent>
+
+          <TabsContent value="emergent-patterns" className="space-y-6">
+            <EmergentPatternDetection />
           </TabsContent>
 
           <TabsContent value="map" className="space-y-6">

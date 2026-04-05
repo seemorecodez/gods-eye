@@ -139,4 +139,4 @@ export interface ThreatPrediction {
   timestamp: Date
 }
 
-export type ViewMode = 'stack' | 'monitor' | 'pipeline' | 'map' | 'guide' | 'activity' | 'ml-predictions'
+export type ViewMode = 'stack' | 'monitor' | 'pipeline' | 'map' | 'guide' | 'activity' | 'ml-predictions' | 'emergent-patterns'
