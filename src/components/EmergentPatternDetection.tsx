@@ -16,6 +16,7 @@ import {
 } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
+import { threatAlertSystem } from '@/lib/threat-alert-system'
 
 interface DataDomain {
   name: string
@@ -140,6 +141,24 @@ Make it specific and realistic.`
           accuracyScore: curr.accuracyScore
         }
       })
+
+      if (data.probability >= 0.70 && data.confidence >= 0.70) {
+        const severity = data.probability >= 0.85 ? 'CRITICAL' : 'HIGH'
+        await threatAlertSystem.checkAndCreateAlert(
+          'EMERGENT_PATTERN',
+          severity,
+          data.title,
+          `Multi-source intelligence fusion detected emergent pattern with ${(data.probability * 100).toFixed(1)}% probability over ${data.timeframe}. ${data.fusionChain.length} intelligence domains analyzed.`,
+          data.confidence,
+          data.fusionChain,
+          data.recommendation,
+          'MULTI_SOURCE_FUSION',
+          selectedDomains.map(d => ({
+            source: d.domain,
+            value: d.capabilities
+          }))
+        )
+      }
 
       toast.success(`Pattern detected: ${data.title}`, {
         description: `${(data.probability * 100).toFixed(1)}% probability`

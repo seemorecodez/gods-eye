@@ -12,11 +12,12 @@ import { CommitActivityTimeline } from '@/components/CommitActivityTimeline'
 import { MLPredictionsVisualizer } from '@/components/MLPredictionsVisualizer'
 import { EmergentPatternDetection } from '@/components/EmergentPatternDetection'
 import { AlertNotifications } from '@/components/AlertNotifications'
+import { ThreatAlertManagement } from '@/components/ThreatAlertManagement'
 import { ViewMode, Repository } from '@/lib/types'
 import { fetchAllRepositories } from '@/lib/github-api'
 import { dataSources } from '@/lib/data'
 import { useHealthMonitor } from '@/hooks/use-health-monitor'
-import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner, GitCommit, Brain, Network } from '@phosphor-icons/react'
+import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner, GitCommit, Brain, Network, Bell } from '@phosphor-icons/react'
 
 function App() {
   const [activeView, setActiveView] = useState<ViewMode>('stack')
@@ -110,6 +111,10 @@ function App() {
             <TabsTrigger value="emergent-patterns" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
               <Network size={18} className="mr-2" />
               Emergent Patterns
+            </TabsTrigger>
+            <TabsTrigger value="threat-alerts" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+              <Bell size={18} className="mr-2" />
+              Threat Alerts
             </TabsTrigger>
             <TabsTrigger value="map" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
               <Globe size={18} className="mr-2" />
@@ -219,6 +224,10 @@ function App() {
 
           <TabsContent value="emergent-patterns" className="space-y-6">
             <EmergentPatternDetection />
+          </TabsContent>
+
+          <TabsContent value="threat-alerts" className="space-y-6">
+            <ThreatAlertManagement />
           </TabsContent>
 
           <TabsContent value="map" className="space-y-6">

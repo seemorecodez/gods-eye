@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Repository } from '@/lib/types'
 import { fetchAllRepositories } from '@/lib/github-api'
 import { toast } from 'sonner'
+import { threatAlertSystem } from '@/lib/threat-alert-system'
 
 interface ThreatAnalysis {
   id: string
@@ -123,6 +124,28 @@ Make it realistic and specific to the region.`
       }
 
       setThreatAnalyses((current) => [analysis, ...(current || [])])
+      
+      if ((analysis.threatLevel === 'HIGH' || analysis.threatLevel === 'CRITICAL') && analysis.confidence >= 0.75) {
+        await threatAlertSystem.checkAndCreateAlert(
+          'CRITICAL_THREAT',
+          analysis.threatLevel === 'CRITICAL' ? 'CRITICAL' : 'HIGH',
+          `${analysis.threatLevel} threat detected in ${location}`,
+          `ML threat analysis model identified ${analysis.threatLevel.toLowerCase()} threat level in ${location}, ${region}. Analysis based on multi-source intelligence correlation.`,
+          analysis.confidence,
+          analysis.keyFactors,
+          analysis.recommendation,
+          'ML_PREDICTION',
+          [
+            { source: 'Region', value: region },
+            { source: 'Location', value: location },
+            { source: 'Threat Level', value: analysis.threatLevel }
+          ],
+          {
+            region: location
+          }
+        )
+      }
+      
       toast.success(`Threat analysis generated for ${region}`)
     } catch (error) {
       console.error('Error generating threat analysis:', error)
@@ -169,6 +192,28 @@ Make it realistic and specific to conflict zones.`
       }
 
       setSatelliteAnalyses((current) => [analysis, ...(current || [])])
+      
+      if (analysis.anomalies.length > 0 && analysis.confidence >= 0.85) {
+        await threatAlertSystem.checkAndCreateAlert(
+          'ML_HIGH_CONFIDENCE',
+          analysis.anomalies.length >= 3 ? 'CRITICAL' : 'HIGH',
+          `Satellite anomalies detected in ${location}`,
+          `YOLOv8 satellite analysis detected ${analysis.anomalies.length} anomalies in ${location}, ${region}. ${analysis.detectedObjects.length} objects identified with ${(analysis.confidence * 100).toFixed(1)}% confidence.`,
+          analysis.confidence,
+          analysis.anomalies,
+          `Investigate detected objects: ${analysis.detectedObjects.join(', ')}. Monitor for further infrastructure changes.`,
+          'ML_PREDICTION',
+          [
+            { source: 'Detected Objects', value: analysis.detectedObjects.join(', ') },
+            { source: 'Land Cover Change', value: analysis.landCoverChange },
+            { source: 'Infrastructure Status', value: analysis.infrastructureStatus }
+          ],
+          {
+            region: location
+          }
+        )
+      }
+      
       toast.success(`Satellite analysis complete for ${region}`)
     } catch (error) {
       console.error('Error generating satellite analysis:', error)
