@@ -1,0 +1,158 @@
+# Planning Guide
+
+A comprehensive geospatial intelligence platform that aggregates open-source data from satellites, conflict databases, and public repositories to provide real-time global awareness through AI-powered analysis and interactive visualization.
+
+**Experience Qualities**:
+1. **Commanding** - Users should feel they have unprecedented access to global intelligence through a powerful, data-dense interface that doesn't shy away from complexity
+2. **Precise** - Every interaction and data point must convey technical accuracy and professional-grade reliability, inspiring confidence in critical decision-making
+3. **Expansive** - The interface should feel like peering into a vast interconnected system, with layers of data revealing themselves progressively without overwhelming
+
+**Complexity Level**: Complex Application (advanced functionality, likely with multiple views)
+This platform integrates multiple data sources, AI processing layers, real-time visualization, and requires sophisticated state management across different analysis modes, making it a complex multi-view application.
+
+## Essential Features
+
+### Repository Stack Explorer
+- **Functionality**: Interactive visualization of the technology stack showing all GitHub repositories organized by layer (Data Collection, AI/ML Processing, Visualization, Infrastructure)
+- **Purpose**: Provides users with a comprehensive understanding of the system architecture and direct access to source repositories
+- **Trigger**: Default landing view on application load
+- **Progression**: User views categorized stack → Clicks on repository card → Expanded details with description, stars, language → External link to GitHub opens in new tab
+- **Success criteria**: All repositories are accurately categorized, clickable, and display key metadata (stars, language, last updated)
+
+### Data Source Monitor
+- **Functionality**: Real-time status dashboard showing simulated connectivity and data freshness for each data collection source (ACLED, Sentinel, Google Earth Engine, etc.)
+- **Purpose**: Gives users confidence in data reliability and helps identify potential gaps in coverage
+- **Trigger**: Accessible via main navigation tab
+- **Progression**: User navigates to monitor → Views status grid with color-coded health indicators → Clicks on source for detailed metrics → Sees last sync time, record count, coverage area
+- **Success criteria**: Status indicators update in real-time, color coding is intuitive (green/yellow/red), detailed metrics are accurate
+
+### AI Analysis Pipeline Visualizer
+- **Functionality**: Visual flowchart showing how data moves through the AI/ML processing layer, from raw satellite imagery through YOLO detection to analyzed outputs
+- **Purpose**: Demystifies the AI processing workflow and helps users understand confidence levels and processing stages
+- **Trigger**: Accessed via "Pipeline" navigation tab
+- **Progression**: User views processing flow diagram → Sees active processing jobs → Clicks on stage for technical details → Views model architecture, processing time, accuracy metrics
+- **Success criteria**: Flow diagram is clear and animated, processing stages are accurately represented, users can trace data lineage
+
+### Interactive Geospatial Map
+- **Functionality**: Global map interface with layered data visualization showing conflict events, satellite coverage areas, and detected changes
+- **Purpose**: Core intelligence interface where users can visually analyze spatial patterns and relationships in the data
+- **Trigger**: Accessible via "Map" navigation tab (primary interface)
+- **Progression**: User opens map → Selects data layers to overlay → Zooms to region of interest → Clicks markers for detailed event data → Filters by date range or event type → Exports selected data
+- **Success criteria**: Map is performant with multiple layers, markers cluster intelligently, filtering is instant, data tooltips are informative
+
+### Repository Integration Guide
+- **Functionality**: Step-by-step documentation showing how each GitHub repository in the stack contributes to the overall system
+- **Purpose**: Educational tool for users wanting to replicate or extend the platform
+- **Trigger**: Accessible via "Guide" section or info icons throughout the interface
+- **Progression**: User selects a repository → Reads integration overview → Views code snippets → Sees example outputs → Links to full documentation
+- **Success criteria**: Integration steps are clear, code examples are syntax-highlighted, examples are realistic
+
+## Edge Case Handling
+
+- **No Active Data Sources**: Display prominent empty state with instructions to configure API keys and data connections, show example data mode toggle
+- **Repository API Rate Limits**: Gracefully cache GitHub metadata and display last known state with timestamp, show rate limit reset countdown
+- **Map Rendering Failures**: Fall back to simplified map view, display error boundaries with actionable recovery options
+- **Slow Network Conditions**: Implement progressive loading with skeleton states, prioritize critical data layers, allow offline browsing of cached data
+- **Unsupported Browsers**: Detect WebGL/Canvas capabilities and show compatibility warning with recommended browsers
+- **Large Dataset Filtering**: Use debounced inputs, virtual scrolling for lists, and show loading indicators for operations >500ms
+- **Missing Geospatial Data**: Display data quality indicators, show coverage gaps on map, provide alternative data source suggestions
+
+## Design Direction
+
+The design should evoke the feeling of a professional intelligence command center - sophisticated, data-dense, and purposeful. Think aerospace mission control meets cutting-edge research laboratory. The interface should feel like a powerful tool for serious analysis rather than a consumer app, with a technical aesthetic that embraces complexity while maintaining clarity. Dark backgrounds provide contrast for vibrant data visualization, while precise typography and structured layouts convey authority and precision.
+
+## Color Selection
+
+Dark, technical palette with high-contrast data visualization accents inspired by satellite imagery processing and military-grade systems.
+
+- **Primary Color**: Deep Space Blue `oklch(0.25 0.05 250)` - Communicates technical sophistication and depth, reminiscent of night sky and satellite operations
+- **Secondary Colors**: 
+  - Satellite Silver `oklch(0.45 0.02 240)` - Metallic accent for secondary UI elements and borders
+  - Data Charcoal `oklch(0.18 0.01 250)` - Card backgrounds and elevated surfaces
+- **Accent Color**: Laser Cyan `oklch(0.75 0.15 200)` - High-energy highlight for active states, CTAs, and critical alerts
+- **Foreground/Background Pairings**:
+  - Primary (Deep Space Blue `oklch(0.25 0.05 250)`): White text `oklch(0.98 0 0)` - Ratio 8.2:1 ✓
+  - Background (Near Black `oklch(0.12 0.01 250)`): Light Gray text `oklch(0.85 0.01 240)` - Ratio 12.5:1 ✓
+  - Accent (Laser Cyan `oklch(0.75 0.15 200)`): Dark text `oklch(0.15 0.01 250)` - Ratio 11.8:1 ✓
+  - Card (Data Charcoal `oklch(0.18 0.01 250)`): White text `oklch(0.98 0 0)` - Ratio 9.5:1 ✓
+
+Additional data visualization colors:
+- Active Source Green: `oklch(0.70 0.20 145)` - Healthy/connected status
+- Warning Amber: `oklch(0.75 0.18 80)` - Degraded/warning states  
+- Critical Red: `oklch(0.60 0.22 25)` - Offline/error states
+- Processing Purple: `oklch(0.65 0.18 290)` - AI pipeline active states
+
+## Font Selection
+
+The typeface should convey technical precision and modern computing aesthetics while remaining highly readable at small sizes for data-dense interfaces.
+
+- **Primary Font**: JetBrains Mono - Monospaced font that reinforces the technical, code-adjacent nature of the platform while providing excellent readability for mixed alphanumeric data
+- **Secondary Font**: Space Grotesk - Geometric sans-serif for headings and UI labels that complements the technical aesthetic with a contemporary edge
+
+**Typographic Hierarchy**:
+- H1 (Section Titles): Space Grotesk Bold/32px/tight letter-spacing (-0.02em)/line-height 1.2
+- H2 (Subsection Headers): Space Grotesk SemiBold/24px/normal letter-spacing/line-height 1.3
+- H3 (Card Headers): Space Grotesk Medium/18px/normal letter-spacing/line-height 1.4
+- Body (Primary Text): JetBrains Mono Regular/14px/normal letter-spacing/line-height 1.6
+- Caption (Metadata/Labels): JetBrains Mono Regular/12px/wide letter-spacing (0.02em)/line-height 1.5
+- Code/Data Values: JetBrains Mono Medium/13px/normal letter-spacing/line-height 1.5
+
+## Animations
+
+Animations should feel technical and precise, like data systems coming online and processing information. Use subtle fade-ins and slide transitions for panel changes, smooth zoom and pan for map interactions, and pulsing indicators for real-time data updates. Avoid bouncy or playful easing - favor linear or slight ease-out curves that feel mechanical and deliberate. Data visualizations should animate with purpose, such as connection lines drawing from point to point or status indicators smoothly transitioning through states. Keep durations fast (150-250ms) to maintain the feeling of a responsive, high-performance system.
+
+## Component Selection
+
+**Components**:
+- **Tabs**: For main navigation between Stack Explorer, Data Monitor, Pipeline, Map, and Guide views
+- **Card**: Repository cards, data source status cards, metric displays - with subtle border and elevated shadow
+- **Badge**: For repository languages, status indicators (online/offline/degraded), data tags
+- **Separator**: To create clear boundaries between data sections and layer controls
+- **Accordion**: For expandable repository details and configuration sections
+- **Dialog**: For detailed repository information, data export options, and settings
+- **Hover Card**: Quick preview of repository stats when hovering over cards in stack view
+- **Scroll Area**: For long lists of repositories, events, and log entries
+- **Switch**: Toggle data layers on/off in map view, enable/disable processing stages
+- **Select**: Filter dropdowns for event types, date ranges, and data sources
+- **Tooltip**: Contextual help for technical terminology and UI controls
+- **Progress**: Show data loading states, processing pipeline completion
+- **Slider**: Date range selection, opacity control for map layers
+
+**Customizations**:
+- Custom hexagonal grid pattern background using `repeating-linear-gradient` to reinforce technical/satellite aesthetic
+- Custom map component integration area (placeholder for future Leaflet/Mapbox integration)
+- Custom network graph visualization for repository dependencies using D3
+- Custom status indicator component with animated pulse effect for real-time data
+- Custom timeline component for data processing pipeline stages
+
+**States**:
+- Buttons: Default has subtle border and bg-primary, hover adds glow effect with shadow, active state scales down slightly (0.98), disabled reduces opacity to 0.5
+- Inputs: Default has border-input, focus adds ring in accent color with slight glow, error state adds border-destructive with shake animation
+- Cards: Default has subtle elevation, hover lifts with increased shadow and slight scale (1.01), selected state adds accent border with glow
+- Badges: Solid fill for status (green/amber/red), subtle outline for tags, pulsing animation for "live" indicators
+
+**Icon Selection**:
+- Stack/Layers: `Stack`, `Cube` for architecture and infrastructure
+- Data: `Database`, `CloudArrowDown`, `Satellite` for data sources
+- AI/Processing: `BrainCircuit`, `Cpu`, `GitBranch` for ML pipeline
+- Map: `Globe`, `MapPin`, `Target` for geospatial features
+- Status: `CheckCircle`, `WarningCircle`, `XCircle` for health indicators
+- Actions: `Play`, `Pause`, `ArrowsClockwise` for controls
+- Navigation: `List`, `ChartBar`, `Map`, `BookOpen` for main tabs
+- External: `ArrowSquareOut`, `GithubLogo` for repository links
+
+**Spacing**:
+- Section padding: `p-8` (32px) for main containers
+- Card padding: `p-6` (24px) for content areas
+- Element gaps: `gap-6` (24px) for major sections, `gap-4` (16px) for related items, `gap-2` (8px) for tight groups
+- Margins: `mb-8` for section breaks, `mb-4` for subsections, `mb-2` for labels
+
+**Mobile**:
+- Tabs convert to dropdown select menu on mobile (<768px)
+- Repository cards stack vertically with full width
+- Map controls move to bottom drawer instead of sidebar
+- Data tables convert to card-based layout with expandable details
+- Multi-column layouts collapse to single column
+- Font sizes reduce slightly: H1 to 24px, Body to 13px
+- Touch targets expand to minimum 44x44px for all interactive elements
+- Horizontal scrolling enabled for wide data tables with sticky first column
