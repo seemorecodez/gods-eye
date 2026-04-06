@@ -1,5 +1,6 @@
 export interface Flight {
   id: string
+  icao24: string
   callsign: string
   origin: {
     code: string
@@ -7,20 +8,22 @@ export interface Flight {
     lat: number
     lng: number
     country: string
-  }
+  } | null
   destination: {
     code: string
     name: string
     lat: number
     lng: number
     country: string
-  }
+  } | null
   currentPosition: {
     lat: number
     lng: number
     altitude: number
     heading: number
     speed: number
+    verticalRate: number
+    onGround: boolean
   }
   aircraft: {
     type: string
@@ -28,8 +31,11 @@ export interface Flight {
     airline: string
   }
   status: 'scheduled' | 'departed' | 'en-route' | 'landing' | 'arrived'
-  departureTime: Date
-  arrivalTime: Date
+  isMilitary: boolean
+  squawk: string | null
+  lastUpdate: number
+  departureTime: Date | null
+  arrivalTime: Date | null
   progress: number
 }
 
@@ -42,6 +48,31 @@ export interface Airport {
   city: string
   departures: number
   arrivals: number
+}
+
+interface OpenSkyState {
+  icao24: string
+  callsign: string | null
+  origin_country: string
+  time_position: number | null
+  last_contact: number
+  longitude: number | null
+  latitude: number | null
+  baro_altitude: number | null
+  on_ground: boolean
+  velocity: number | null
+  true_track: number | null
+  vertical_rate: number | null
+  sensors: number[] | null
+  geo_altitude: number | null
+  squawk: string | null
+  spi: boolean
+  position_source: number
+}
+
+interface OpenSkyResponse {
+  time: number
+  states: OpenSkyState[] | null
 }
 
 const MAJOR_AIRPORTS: Airport[] = [
@@ -77,59 +108,132 @@ const MAJOR_AIRPORTS: Airport[] = [
   { code: 'CAI', name: 'Cairo International', lat: 30.1219, lng: 31.4056, country: 'Egypt', city: 'Cairo', departures: 0, arrivals: 0 }
 ]
 
-const AIRCRAFT_TYPES = [
-  'Boeing 737',
-  'Boeing 777',
-  'Boeing 787',
-  'Airbus A320',
-  'Airbus A330',
-  'Airbus A350',
-  'Airbus A380'
-]
+const MILITARY_SQUAWKS = ['7500', '7600', '7700']
+const MILITARY_ICAO_PREFIXES = ['AE', 'AF', 'RCH', 'CNV', 'EVAL', 'EVAC']
 
-const AIRLINES = [
-  'Delta Airlines',
-  'American Airlines',
-  'United Airlines',
-  'British Airways',
-  'Emirates',
-  'Lufthansa',
-  'Air France',
-  'Qatar Airways',
-  'Singapore Airlines',
-  'Cathay Pacific',
-  'ANA',
-  'JAL',
-  'KLM',
-  'Turkish Airlines',
-  'Etihad Airways'
-]
-
-function interpolatePosition(
-  origin: { lat: number; lng: number },
-  destination: { lat: number; lng: number },
-  progress: number
-): { lat: number; lng: number } {
-  const lat = origin.lat + (destination.lat - origin.lat) * progress
-  const lng = origin.lng + (destination.lng - origin.lng) * progress
-  return { lat, lng }
+function isMilitaryFlight(callsign: string | null, squawk: string | null, icao24: string): boolean {
+  if (!callsign) return false
+  
+  const cleanCallsign = callsign.trim().toUpperCase()
+  
+  if (MILITARY_ICAO_PREFIXES.some(prefix => cleanCallsign.startsWith(prefix))) {
+    return true
+  }
+  
+  if (squawk && MILITARY_SQUAWKS.includes(squawk)) {
+    return true
+  }
+  
+  if (icao24.startsWith('ae') || icao24.startsWith('af')) {
+    return true
+  }
+  
+  return false
 }
 
-function calculateHeading(
-  from: { lat: number; lng: number },
-  to: { lat: number; lng: number }
-): number {
-  const dLng = to.lng - from.lng
-  const y = Math.sin(dLng) * Math.cos(to.lat)
-  const x = Math.cos(from.lat) * Math.sin(to.lat) - 
-            Math.sin(from.lat) * Math.cos(to.lat) * Math.cos(dLng)
-  const heading = Math.atan2(y, x) * 180 / Math.PI
-  return (heading + 360) % 360
+function findNearestAirport(lat: number, lng: number): Airport | null {
+  let nearest: Airport | null = null
+  let minDistance = Infinity
+  
+  for (const airport of MAJOR_AIRPORTS) {
+    const distance = Math.sqrt(
+      Math.pow(airport.lat - lat, 2) + Math.pow(airport.lng - lng, 2)
+    )
+    if (distance < minDistance) {
+      minDistance = distance
+      nearest = airport
+    }
+  }
+  
+  return minDistance < 0.5 ? nearest : null
+}
+
+function determineStatus(onGround: boolean, altitude: number | null): Flight['status'] {
+  if (onGround) return 'arrived'
+  if (!altitude) return 'en-route'
+  if (altitude < 5000) return 'landing'
+  if (altitude < 10000) return 'departed'
+  return 'en-route'
+}
+
+export async function fetchRealFlights(limit: number = 500): Promise<Flight[]> {
+  try {
+    const response = await fetch('https://opensky-network.org/api/states/all')
+    
+    if (!response.ok) {
+      console.warn('OpenSky API rate limit or error, using fallback')
+      return generateFlights(limit)
+    }
+    
+    const data: OpenSkyResponse = await response.json()
+    
+    if (!data.states || data.states.length === 0) {
+      console.warn('No flight data available, using fallback')
+      return generateFlights(limit)
+    }
+    
+    const flights: Flight[] = []
+    
+    for (const state of data.states.slice(0, limit)) {
+      if (!state.latitude || !state.longitude) continue
+      
+      const callsign = state.callsign?.trim() || `UNKNOWN_${state.icao24.toUpperCase()}`
+      const isMilitary = isMilitaryFlight(state.callsign, state.squawk, state.icao24)
+      const altitude = state.baro_altitude || state.geo_altitude || 0
+      const status = determineStatus(state.on_ground, altitude)
+      
+      const nearestAirport = findNearestAirport(state.latitude, state.longitude)
+      
+      flights.push({
+        id: state.icao24.toUpperCase(),
+        icao24: state.icao24,
+        callsign,
+        origin: nearestAirport,
+        destination: null,
+        currentPosition: {
+          lat: state.latitude,
+          lng: state.longitude,
+          altitude: altitude,
+          heading: state.true_track || 0,
+          speed: state.velocity || 0,
+          verticalRate: state.vertical_rate || 0,
+          onGround: state.on_ground
+        },
+        aircraft: {
+          type: isMilitary ? 'Military Aircraft' : 'Commercial Aircraft',
+          registration: state.icao24.toUpperCase(),
+          airline: state.origin_country
+        },
+        status,
+        isMilitary,
+        squawk: state.squawk,
+        lastUpdate: state.last_contact,
+        departureTime: null,
+        arrivalTime: null,
+        progress: 0.5
+      })
+    }
+    
+    return flights
+  } catch (error) {
+    console.error('Error fetching real flight data:', error)
+    return generateFlights(limit)
+  }
 }
 
 export function generateFlights(count: number = 500): Flight[] {
   const flights: Flight[] = []
   const now = Date.now()
+  
+  const AIRCRAFT_TYPES = [
+    'Boeing 737', 'Boeing 777', 'Boeing 787',
+    'Airbus A320', 'Airbus A330', 'Airbus A350', 'Airbus A380'
+  ]
+  
+  const AIRLINES = [
+    'Delta Airlines', 'American Airlines', 'United Airlines',
+    'British Airways', 'Emirates', 'Lufthansa', 'Air France'
+  ]
   
   for (let i = 0; i < count; i++) {
     const origin = MAJOR_AIRPORTS[Math.floor(Math.random() * MAJOR_AIRPORTS.length)]
@@ -164,9 +268,11 @@ export function generateFlights(count: number = 500): Flight[] {
     
     const aircraft = AIRCRAFT_TYPES[Math.floor(Math.random() * AIRCRAFT_TYPES.length)]
     const airline = AIRLINES[Math.floor(Math.random() * AIRLINES.length)]
+    const isMilitary = Math.random() < 0.05
     
     flights.push({
       id: `FL${1000 + i}`,
+      icao24: `abc${i.toString(16).padStart(3, '0')}`,
       callsign: `${airline.substring(0, 2).toUpperCase()}${100 + Math.floor(Math.random() * 900)}`,
       origin: { ...origin },
       destination: { ...destination },
@@ -175,7 +281,9 @@ export function generateFlights(count: number = 500): Flight[] {
         lng: currentPos.lng,
         altitude,
         heading,
-        speed
+        speed,
+        verticalRate: 0,
+        onGround: false
       },
       aircraft: {
         type: aircraft,
@@ -183,6 +291,9 @@ export function generateFlights(count: number = 500): Flight[] {
         airline
       },
       status,
+      isMilitary,
+      squawk: null,
+      lastUpdate: now / 1000,
       departureTime,
       arrivalTime,
       progress
@@ -192,11 +303,34 @@ export function generateFlights(count: number = 500): Flight[] {
   return flights
 }
 
+function interpolatePosition(
+  origin: { lat: number; lng: number },
+  destination: { lat: number; lng: number },
+  progress: number
+): { lat: number; lng: number } {
+  const lat = origin.lat + (destination.lat - origin.lat) * progress
+  const lng = origin.lng + (destination.lng - origin.lng) * progress
+  return { lat, lng }
+}
+
+function calculateHeading(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number }
+): number {
+  const dLng = to.lng - from.lng
+  const y = Math.sin(dLng) * Math.cos(to.lat)
+  const x = Math.cos(from.lat) * Math.sin(to.lat) - 
+            Math.sin(from.lat) * Math.cos(to.lat) * Math.cos(dLng)
+  const heading = Math.atan2(y, x) * 180 / Math.PI
+  return (heading + 360) % 360
+}
+
 export function updateFlights(flights: Flight[]): Flight[] {
   const now = Date.now()
   
   return flights.map(flight => {
     if (flight.status === 'arrived') return flight
+    if (!flight.departureTime || !flight.arrivalTime || !flight.origin || !flight.destination) return flight
     
     const totalTime = flight.arrivalTime.getTime() - flight.departureTime.getTime()
     const elapsed = Math.max(0, now - flight.departureTime.getTime())
@@ -234,10 +368,18 @@ export function getAirports(): Airport[] {
 
 export function getFlightsByAirport(flights: Flight[], airportCode: string): Flight[] {
   return flights.filter(f => 
-    f.origin.code === airportCode || f.destination.code === airportCode
+    f.origin?.code === airportCode || f.destination?.code === airportCode
   )
 }
 
 export function getActiveFlightsCount(flights: Flight[]): number {
   return flights.filter(f => f.status === 'en-route' || f.status === 'departed').length
+}
+
+export function getMilitaryFlights(flights: Flight[]): Flight[] {
+  return flights.filter(f => f.isMilitary)
+}
+
+export function getCivilianFlights(flights: Flight[]): Flight[] {
+  return flights.filter(f => !f.isMilitary)
 }

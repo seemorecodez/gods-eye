@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
-import { generateFlights, updateFlights, Flight, getActiveFlightsCount } from '@/lib/airline-traffic'
+import { fetchRealFlights, generateFlights, updateFlights, Flight, getActiveFlightsCount, getMilitaryFlights } from '@/lib/airline-traffic'
 import { Airplane, Globe, Pause, Play } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 
@@ -24,9 +24,12 @@ export function HolographicGlobe() {
   const [isPlaying, setIsPlaying] = useState(true)
   const [showFlightPaths, setShowFlightPaths] = useState(true)
   const [showAirplanes, setShowAirplanes] = useState(true)
+  const [showMilitaryOnly, setShowMilitaryOnly] = useState(false)
+  const [useRealData, setUseRealData] = useState(true)
   const [globeRotationSpeed, setGlobeRotationSpeed] = useState(0.5)
   const [flightCount, setFlightCount] = useState(500)
   const [holographicIntensity, setHolographicIntensity] = useState(0.8)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -140,9 +143,27 @@ export function HolographicGlobe() {
     airplanesRef.current = airplanesGroup
     scene.add(airplanesGroup)
 
-    const initialFlights = generateFlights(flightCount)
-    setFlights(initialFlights)
-    createFlightVisuals(initialFlights, flightLinesGroup, airplanesGroup)
+    const loadFlights = async () => {
+      setLoading(true)
+      try {
+        const initialFlights = useRealData 
+          ? await fetchRealFlights(flightCount)
+          : generateFlights(flightCount)
+        setFlights(initialFlights)
+        createFlightVisuals(initialFlights, flightLinesGroup, airplanesGroup)
+        toast.success(`Loaded ${initialFlights.length} live flights from OpenSky Network`)
+      } catch (error) {
+        console.error('Error loading flights:', error)
+        const fallbackFlights = generateFlights(flightCount)
+        setFlights(fallbackFlights)
+        createFlightVisuals(fallbackFlights, flightLinesGroup, airplanesGroup)
+        toast.warning('Using simulated flight data (API unavailable)')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadFlights()
 
     let mouseX = 0
     let mouseY = 0
@@ -248,6 +269,21 @@ export function HolographicGlobe() {
   }, [flightCount])
 
   useEffect(() => {
+    if (!useRealData) return
+
+    const refreshInterval = setInterval(async () => {
+      try {
+        const freshFlights = await fetchRealFlights(flightCount)
+        setFlights(freshFlights)
+      } catch (error) {
+        console.error('Failed to refresh flight data:', error)
+      }
+    }, 30000)
+
+    return () => clearInterval(refreshInterval)
+  }, [useRealData, flightCount])
+
+  useEffect(() => {
     if (!flightLinesRef.current || !airplanesRef.current) return
     
     while (flightLinesRef.current.children.length > 0) {
@@ -257,8 +293,9 @@ export function HolographicGlobe() {
       airplanesRef.current.remove(airplanesRef.current.children[0])
     }
     
-    createFlightVisuals(flights, flightLinesRef.current, airplanesRef.current)
-  }, [flights, showFlightPaths, showAirplanes, holographicIntensity])
+    const filteredFlights = showMilitaryOnly ? getMilitaryFlights(flights) : flights
+    createFlightVisuals(filteredFlights, flightLinesRef.current, airplanesRef.current)
+  }, [flights, showFlightPaths, showAirplanes, showMilitaryOnly, holographicIntensity])
 
   function createGradientTexture(): THREE.Texture {
     const canvas = document.createElement('canvas')
@@ -344,6 +381,7 @@ export function HolographicGlobe() {
   ) {
     flightList.forEach((flight, index) => {
       if (flight.status === 'scheduled' || flight.status === 'arrived') return
+      if (!flight.origin || !flight.destination) return
 
       if (showFlightPaths && index % 3 === 0) {
         const startPos = latLngToVector3(flight.origin.lat, flight.origin.lng, 202)
@@ -413,7 +451,10 @@ export function HolographicGlobe() {
                 HOLOGRAPHIC GLOBE - GLOBAL AIRLINE TRAFFIC
               </CardTitle>
               <CardDescription>
-                Real-time visualization of {flights.length} flights across {flightCount} routes worldwide
+                {useRealData 
+                  ? `Live flight data from OpenSky Network - ${flights.length} aircraft tracked globally (refreshes every 30s)`
+                  : `Simulated visualization of ${flights.length} flights across ${flightCount} routes worldwide`
+                }
               </CardDescription>
             </div>
             <div className="flex items-center gap-4">
@@ -486,7 +527,7 @@ export function HolographicGlobe() {
             </div>
           </div>
 
-          <div className="flex items-center gap-6 mt-4 pt-4 border-t border-border">
+          <div className="flex items-center gap-6 mt-4 pt-4 border-t border-border flex-wrap">
             <div className="flex items-center gap-2">
               <Switch
                 checked={showFlightPaths}
@@ -508,9 +549,46 @@ export function HolographicGlobe() {
                 Aircraft Markers
               </Label>
             </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={useRealData}
+                onCheckedChange={async (checked) => {
+                  setUseRealData(checked)
+                  setLoading(true)
+                  try {
+                    const newFlights = checked 
+                      ? await fetchRealFlights(flightCount)
+                      : generateFlights(flightCount)
+                    setFlights(newFlights)
+                    toast.success(checked ? 'Using real OpenSky Network data' : 'Using simulated flight data')
+                  } catch (error) {
+                    toast.error('Failed to load real data, using simulated')
+                    setFlights(generateFlights(flightCount))
+                  } finally {
+                    setLoading(false)
+                  }
+                }}
+                id="real-data"
+              />
+              <Label htmlFor="real-data" className="text-sm text-muted-foreground cursor-pointer">
+                Real-Time Data {loading && '(Loading...)'}
+              </Label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={showMilitaryOnly}
+                onCheckedChange={setShowMilitaryOnly}
+                id="military-only"
+              />
+              <Label htmlFor="military-only" className="text-sm text-muted-foreground cursor-pointer">
+                Military Aircraft Only
+              </Label>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
             <div className="bg-muted/50 rounded-lg p-3 border border-border">
               <div className="text-xs text-muted-foreground">En Route</div>
               <div className="text-2xl font-bold text-foreground">
@@ -533,6 +611,12 @@ export function HolographicGlobe() {
               <div className="text-xs text-muted-foreground">Scheduled</div>
               <div className="text-2xl font-bold text-foreground">
                 {flights.filter(f => f.status === 'scheduled').length}
+              </div>
+            </div>
+            <div className="bg-destructive/20 rounded-lg p-3 border border-destructive/50">
+              <div className="text-xs text-destructive-foreground">Military</div>
+              <div className="text-2xl font-bold text-destructive">
+                {getMilitaryFlights(flights).length}
               </div>
             </div>
           </div>

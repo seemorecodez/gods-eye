@@ -47,6 +47,13 @@ This platform integrates multiple data sources, AI processing layers, real-time 
 - **Progression**: User selects a repository → Reads integration overview → Views code snippets → Sees example outputs → Links to full documentation
 - **Success criteria**: Integration steps are clear, code examples are syntax-highlighted, examples are realistic
 
+### Real-Time Flight Tracking System
+- **Functionality**: Live global air traffic visualization using OpenSky Network API showing real aircraft positions, speeds, altitudes, headings, and military aircraft detection with ICAO24 transponder codes, callsigns, and squawk codes
+- **Purpose**: Provide real-time airspace awareness for intelligence gathering, military aircraft tracking, and global aviation monitoring using free open-source flight data
+- **Trigger**: Accessible via "3D Globe" navigation tab with real-time data toggle
+- **Progression**: User opens 3D Globe → Toggles "Real-Time Data" switch to fetch live OpenSky Network data → Views actual aircraft positions globally → Toggles "Military Aircraft Only" filter to isolate military/government flights → Observes aircraft with military ICAO prefixes (AE*, AF*, RCH*, CNV*) → Views flight details including callsign, altitude, speed, heading, vertical rate → Data auto-refreshes every 30 seconds → Can switch back to simulated data for testing
+- **Success criteria**: Fetches live flight data from OpenSky Network API (up to 500 concurrent aircraft), identifies military aircraft by ICAO24 prefix and squawk codes, displays real coordinates/altitude/speed/heading from actual transponders, gracefully falls back to simulated data if API unavailable, auto-refreshes every 30s, military filter shows only detected military/government aircraft, loading states and error handling work correctly
+
 ### Weather Overlay System
 - **Functionality**: Live global weather data from Open-Meteo API displaying real-time temperature, wind, humidity, visibility, and atmospheric conditions across geographic regions
 - **Purpose**: Environmental intelligence layer for operational planning and threat assessment correlation using actual meteorological data
