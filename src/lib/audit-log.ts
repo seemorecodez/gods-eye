@@ -3,21 +3,21 @@ export type AuditEventType =
   | 'data:refresh'
   | 'role:update'
 
-export interface AuditLogEntry {
-  id: string
-  timestamp: number
-  eventType: AuditEventType
-  userId: number
   userName: string
-  action: string
-  details: Record<string, any>
-  severity: 'low' | 'medium' | 'high'
+  details: R
 }
+export interface AuditLogFi
+  userId?: numbe
+  dateTo?: number
+}
+export function createAuditLog
+  userId: number,
+ 
 
-export interface AuditLogFilter {
-  eventType?: AuditEventType[]
-  userId?: number
-  dateFrom?: number
+  return {
+    timestamp: Date.now(),
+    userId,
+    action,
   dateTo?: number
   severity?: AuditLogEntry['severity'][]
 }
@@ -38,37 +38,37 @@ export function createAuditLogEntry(
     userName,
     action,
     details,
-    severity
-  }
-}
 
-export function filterAuditLogs(logs: AuditLogEntry[], filter: AuditLogFilter): AuditLogEntry[] {
-  return logs.filter(log => {
-    if (filter.eventType && !filter.eventType.includes(log.eventType)) return false
-    if (filter.userId && log.userId !== filter.userId) return false
-    if (filter.dateFrom && log.timestamp < filter.dateFrom) return false
-    if (filter.dateTo && log.timestamp > filter.dateTo) return false
-    if (filter.severity && !filter.severity.includes(log.severity)) return false
-    return true
-  })
-}
 
-export function exportAuditLogsToCSV(logs: AuditLogEntry[]): string {
-  const headers = ['ID', 'Timestamp', 'Event Type', 'User', 'Action', 'Severity', 'Details']
-  const rows = logs.map(log => [
-    log.id,
-    new Date(log.timestamp).toISOString(),
-    log.eventType,
-    log.userName,
-    log.action,
-    log.severity,
-    JSON.stringify(log.details)
-  ])
-  
-  const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-  ].join('\n')
-  
-  return csvContent
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
