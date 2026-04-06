@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { RepositoryCard } from '@/components/RepositoryCard'
 import { DataSourceCard } from '@/components/DataSourceCard'
 import { CollaborativeMapEnhanced as CollaborativeMap } from '@/components/CollaborativeMapEnhanced'
+import { UnifiedGlobeMap } from '@/components/UnifiedGlobeMap'
 import { PipelineSimulator } from '@/components/PipelineSimulator'
 import { CommitActivityTimeline } from '@/components/CommitActivityTimeline'
 import { MLPredictionsVisualizer } from '@/components/MLPredictionsVisualizer'
@@ -179,7 +180,7 @@ function App() {
             )}
             <TabsTrigger value="globe" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
               <Globe size={18} className="mr-2" weight="fill" />
-              3D Globe
+              Unified Globe
             </TabsTrigger>
             <TabsTrigger value="notifications" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground relative">
               <Bell size={18} className="mr-2" />
@@ -351,7 +352,13 @@ function App() {
           </TabsContent>
 
           <TabsContent value="globe" className="space-y-6">
-            <HolographicGlobe />
+            <div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">UNIFIED INTELLIGENCE GLOBE</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Interactive 3D globe combining flight tracking, camera feeds, satellites, and collaborative intelligence
+              </p>
+              <UnifiedGlobeMap />
+            </div>
           </TabsContent>
 
           <TabsContent value="notifications" className="space-y-6">
