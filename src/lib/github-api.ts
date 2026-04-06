@@ -205,17 +205,57 @@ export async function fetchRecentCommits(repositories: string[], limit = 20) {
           
           const commits: GitHubCommit[] = await response.json()
           
-          return commits.map(commit => ({
-            id: commit.sha,
-            repository: fullName,
-            sha: commit.sha.substring(0, 7),
-            message: commit.commit.message.split('\n')[0],
-            author: commit.commit.author.name,
-            timestamp: new Date(commit.commit.author.date),
-            filesChanged: commit.files?.length || Math.floor(Math.random() * 15) + 1,
-            additions: commit.stats?.additions || Math.floor(Math.random() * 200) + 10,
-            deletions: commit.stats?.deletions || Math.floor(Math.random() * 100) + 5
-          }))
+          const detailedCommits = await Promise.all(
+            commits.map(async (commit) => {
+              try {
+                const detailResponse = await fetchWithRetry(
+                  `${GITHUB_API_BASE}/repos/${fullName}/commits/${commit.sha}`
+                )
+                
+                if (!detailResponse.ok) {
+                  return {
+                    id: commit.sha,
+                    repository: fullName,
+                    sha: commit.sha.substring(0, 7),
+                    message: commit.commit.message.split('\n')[0],
+                    author: commit.commit.author.name,
+                    timestamp: new Date(commit.commit.author.date),
+                    filesChanged: 0,
+                    additions: 0,
+                    deletions: 0
+                  }
+                }
+                
+                const detailData: GitHubCommit = await detailResponse.json()
+                
+                return {
+                  id: commit.sha,
+                  repository: fullName,
+                  sha: commit.sha.substring(0, 7),
+                  message: commit.commit.message.split('\n')[0],
+                  author: commit.commit.author.name,
+                  timestamp: new Date(commit.commit.author.date),
+                  filesChanged: detailData.files?.length || 0,
+                  additions: detailData.stats?.additions || 0,
+                  deletions: detailData.stats?.deletions || 0
+                }
+              } catch {
+                return {
+                  id: commit.sha,
+                  repository: fullName,
+                  sha: commit.sha.substring(0, 7),
+                  message: commit.commit.message.split('\n')[0],
+                  author: commit.commit.author.name,
+                  timestamp: new Date(commit.commit.author.date),
+                  filesChanged: 0,
+                  additions: 0,
+                  deletions: 0
+                }
+              }
+            })
+          )
+          
+          return detailedCommits
         } catch {
           return []
         }
