@@ -1,37 +1,35 @@
 export type AuditEventType = 
   | 'permission:change'
-  | 'data:export'
-  | 'data:refresh'
+  | 'data:refresh
   | 'annotation:edit'
-  | 'annotation:delete'
-  | 'ml:prediction'
-  | 'threat:create'
   | 'threat:update'
-  | 'threat:acknowledge'
   | 'camera:add'
-  | 'camera:remove'
   | 'role:update'
-
-export interface AuditLogEntry {
-  id: string
+export interface Au
   timestamp: number
-  eventType: AuditEventType
   userId: number
-  userName: string
   action: string
-  details: Record<string, any>
-  severity: 'low' | 'medium' | 'high' | 'critical'
-}
 
-export interface AuditLogFilter {
-  eventType?: AuditEventType[]
-  userId?: number
+
+  eventType?
   dateFrom?: number
-  dateTo?: number
-  severity?: AuditLogEntry['severity'][]
-}
+  severity?: AuditLogEntry[
 
-export function createAuditEntry(
+  eventType: Audit
+  userName: stri
+  details: Record<string, any>
+): AuditLogEntry {
+ 
+
+    userName,
+    details,
+  }
+
+  return logs.fil
+    if (filter.userId && log.userId !== 
+ 
+
+}
   eventType: AuditEventType,
   userId: number,
   userName: string,
@@ -64,30 +62,30 @@ export function filterAuditLogs(logs: AuditLogEntry[], filter: AuditLogFilter): 
 
 export function exportAuditLogsToCSV(logs: AuditLogEntry[]): string {
   const headers = ['Timestamp', 'Event Type', 'User', 'Action', 'Severity', 'Details']
-  const rows = logs.map(log => [
-    new Date(log.timestamp).toISOString(),
-    log.eventType,
-    log.userName,
-    log.action,
-    log.severity,
-    JSON.stringify(log.details)
-  ])
-  
-  const csv = [
-    headers.join(','),
-    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-  ].join('\n')
-  
-  return csv
-}
 
-export async function logAuditEvent(
-  logs: AuditLogEntry[],
-  setLogs: (updater: (current: AuditLogEntry[]) => AuditLogEntry[]) => void,
-  entry: AuditLogEntry
-): Promise<void> {
-  setLogs(current => {
-    const newLogs = [...current, entry]
-    return newLogs.slice(-10000)
-  })
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
