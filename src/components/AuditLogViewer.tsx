@@ -98,10 +98,8 @@ export function AuditLogViewer() {
 
   const getSeverityColor = (severity: AuditLogEntry['severity']) => {
     switch (severity) {
-      case 'critical':
-        return 'bg-red-500/20 text-red-300 border-red-500/30'
       case 'high':
-        return 'bg-orange-500/20 text-orange-300 border-orange-500/30'
+        return 'bg-red-500/20 text-red-300 border-red-500/30'
       case 'medium':
         return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
       case 'low':

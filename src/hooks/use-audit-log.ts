@@ -1,6 +1,6 @@
 import { useKV } from '@github/spark/hooks'
 import { useAuth } from './use-auth'
-import { createAuditEntry, AuditLogEntry, AuditEventType } from '@/lib/audit-log'
+import { createAuditLogEntry, AuditLogEntry, AuditEventType } from '@/lib/audit-log'
 import { useNotifications, createNotificationFromAuditLog } from './use-notifications'
 
 export function useAuditLog() {
@@ -19,7 +19,7 @@ export function useAuditLog() {
       return
     }
 
-    const entry = createAuditEntry(
+    const entry = createAuditLogEntry(
       eventType,
       session.userId,
       session.login,
