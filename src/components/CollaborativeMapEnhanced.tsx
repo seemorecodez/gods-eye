@@ -14,11 +14,11 @@ import { MapEvent, MapAnnotation, CameraFeed, WeatherData, ThreatPrediction, MLP
 import { fetchAllRepositories } from '@/lib/github-api'
 import { fetchWindyWebcams } from '@/lib/windy-webcams-api'
 import { fetchTrafficCameras } from '@/lib/traffic-camera-api'
-import { fetchSatellitePasses, generateSatelliteImageryFeeds, SatellitePass } from '@/lib/satellite-api'
+import { fetchSatellitePasses, generateSatelliteImageryFeeds, SatellitePass, getISSData, ISSData } from '@/lib/satellite-api'
 import { generateWeatherGrid } from '@/lib/weather-api'
 import { generateThreatPredictions } from '@/lib/threat-analysis'
 import { generatePDFReport } from '@/lib/pdf-export'
-import { MapPin, Target, Crosshair, ChartLine, ChatCircle, Video, Eye, PushPin, X, CloudRain, Warning, FilePdf, Spinner, Funnel, Planet, Car } from '@phosphor-icons/react'
+import { MapPin, Target, Crosshair, ChartLine, ChatCircle, Video, Eye, PushPin, X, CloudRain, Warning, FilePdf, Spinner, Funnel, Planet, Car, Rocket } from '@phosphor-icons/react'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -60,6 +60,7 @@ export function CollaborativeMapEnhanced() {
   const [annotations, setAnnotations] = useKV<MapAnnotation[]>("map-annotations", [])
   const [allCameras, setAllCameras] = useState<CameraFeed[]>([])
   const [satellitePasses, setSatellitePasses] = useState<SatellitePass[]>([])
+  const [issData, setIssData] = useState<ISSData | null>(null)
   const [weatherData, setWeatherData] = useState<WeatherData[]>([])
   const [threatPredictions, setThreatPredictions] = useState<ThreatPrediction[]>([])
   const [mlPredictions, setMLPredictions] = useKV<MLPrediction[]>("ml-predictions", [])
@@ -158,6 +159,10 @@ export function CollaborativeMapEnhanced() {
         setAllCameras(combinedCameras)
         setSatellitePasses(satellites)
         setLoadingProgress(50)
+
+        const iss = getISSData()
+        setIssData(iss)
+        setLoadingProgress(55)
 
         const weather = await generateWeatherGrid(40)
         setWeatherData(weather)
@@ -453,7 +458,7 @@ export function CollaborativeMapEnhanced() {
           <Switch checked={showSatellites} onCheckedChange={setShowSatellites} />
           <label className="text-sm flex items-center gap-1">
             <Planet size={16} />
-            Satellite Orbits ({satellitePasses.length})
+            Satellite Orbits ({satellitePasses.length + (issData ? 1 : 0)})
           </label>
         </div>
         <div className="flex items-center gap-2">
@@ -587,6 +592,71 @@ export function CollaborativeMapEnhanced() {
                 </Popup>
               </Marker>
             ))}
+
+            {showSatellites && issData && (
+              <Marker
+                position={[issData.position.lat, issData.position.lng]}
+                icon={L.divIcon({
+                  className: 'custom-icon',
+                  html: `<div style="background-color: oklch(0.70 0.22 25); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-center; border: 3px solid oklch(0.95 0 0); box-shadow: 0 0 20px oklch(0.70 0.22 25 / 0.8); animation: pulse-glow 2s ease-in-out infinite;">
+                    <svg width="18" height="18" viewBox="0 0 256 256" fill="white"><path d="M230.91,124A102.38,102.38,0,0,1,232,138.17a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8A102.38,102.38,0,0,1,25.09,124,8,8,0,0,1,24,119.92C24,76.7,61.85,41.64,108.51,40A8,8,0,0,1,116,47.9v56L77.24,137.07a8,8,0,0,0,5.21,14.61L128,144l45.55,7.72a8,8,0,0,0,5.21-14.61L140,104V47.9a8,8,0,0,1,7.49-7.92C194.15,41.64,232,76.7,232,119.92A8,8,0,0,1,230.91,124Z"></path></svg>
+                  </div>`,
+                  iconSize: [32, 32],
+                  iconAnchor: [16, 16]
+                })}
+              >
+                <Popup className="iss-popup" maxWidth={400}>
+                  <div className="p-2 min-w-[300px]">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Rocket size={20} weight="fill" className="text-red-500" />
+                        <h3 className="font-semibold text-base">International Space Station</h3>
+                      </div>
+                      <div className="flex items-center gap-1 bg-red-500/20 px-2 py-1 rounded">
+                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                        <span className="text-xs font-mono text-red-500">LIVE</span>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Altitude:</span>
+                        <span className="font-mono font-bold">{issData.altitude} km</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Velocity:</span>
+                        <span className="font-mono font-bold">{issData.velocity} km/s</span>
+                      </div>
+                      <div className="flex justify-between col-span-2">
+                        <span className="text-gray-600">Orbital Period:</span>
+                        <span className="font-mono">92.9 minutes</span>
+                      </div>
+                    </div>
+
+                    <div className="mb-2">
+                      <p className="text-xs font-semibold text-gray-700 mb-1">Current Crew:</p>
+                      <div className="text-xs space-y-0.5">
+                        {issData.crew.map((member, idx) => (
+                          <div key={idx} className="text-gray-600 pl-2">• {member}</div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="aspect-video bg-black rounded overflow-hidden mb-2">
+                      <iframe
+                        src={issData.liveStreamUrl}
+                        className="w-full h-full border-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        title="ISS Live Stream"
+                      />
+                    </div>
+                    
+                    <p className="text-xs text-gray-500 text-center">NASA TV - Live Earth Views from ISS</p>
+                  </div>
+                </Popup>
+              </Marker>
+            )}
 
             {showWeather && weatherData.map(weather => (
               <Circle
@@ -793,7 +863,7 @@ export function CollaborativeMapEnhanced() {
             { key: 'events', label: 'Total Events', value: events.length, color: 'oklch(0.75 0.15 200)' },
             { key: 'webcams', label: 'Webcams', value: webcamCount, color: 'oklch(0.70 0.20 145)' },
             { key: 'traffic', label: 'Traffic Cameras', value: trafficCount, color: 'oklch(0.75 0.18 80)' },
-            { key: 'satellites', label: 'Satellites', value: satelliteCount + satellitePasses.length, color: 'oklch(0.75 0.15 40)' },
+            { key: 'satellites', label: 'Satellites', value: satelliteCount + satellitePasses.length + (issData ? 1 : 0), color: 'oklch(0.75 0.15 40)' },
             { key: 'threats', label: 'High Threat Zones', value: filteredThreats.length, color: 'oklch(0.60 0.22 25)' }
           ].map(({ key, label, value, color }) => (
             <motion.div
@@ -1026,7 +1096,7 @@ export function CollaborativeMapEnhanced() {
           <div>
             <h3 className="font-semibold text-sm mb-1">Advanced Intelligence Features</h3>
             <p className="text-xs text-muted-foreground">
-              This platform integrates {allCameras.length}+ camera feeds including {webcamCount} live webcams, {trafficCount} traffic cameras from major cities worldwide, and {satelliteCount} satellite imagery feeds with real orbital data from {satellitePasses.length} earth observation satellites. Filter cameras by region, provider, or type. Double-click the map to add team annotations. Toggle satellite orbits to track {satellitePasses.length} real-time satellite positions including Sentinel-2, Landsat 8/9, and NOAA weather satellites. Enable threat predictions to visualize high-risk zones based on historical data patterns. Use the Export PDF button to generate comprehensive intelligence reports including all annotations, ML predictions, and threat assessments.
+              This platform integrates {allCameras.length}+ camera feeds including {webcamCount} live webcams, {trafficCount} traffic cameras from major cities worldwide, and {satelliteCount} satellite imagery feeds with real orbital data from {satellitePasses.length + (issData ? 1 : 0)} earth observation satellites including the <strong>International Space Station with live NASA TV feed</strong>. Filter cameras by region, provider, or type. <strong>Double-click the map to add collaborative team annotations</strong> that sync in real-time across all users. Toggle satellite orbits to track real-time positions including ISS, Hubble, Sentinel-2, Landsat 8/9, and NOAA weather satellites. Enable <strong>live weather overlay</strong> powered by Open-Meteo API showing real-time temperature, wind, humidity, and conditions globally. Enable threat predictions to visualize high-risk zones based on historical data patterns. Use the Export PDF button to generate comprehensive intelligence reports including all annotations, ML predictions, threat assessments, and weather data.
             </p>
           </div>
         </div>

@@ -82,6 +82,27 @@ This platform integrates multiple data sources, AI processing layers, real-time 
 - **Progression**: User clicks Export PDF → Selects report contents (annotations/predictions/threats/weather) → Reviews summary → Confirms generation → Browser print dialog opens with formatted report → User saves or prints PDF
 - **Success criteria**: PDF includes all selected data types, formatted with professional styling, includes metadata (timestamp, document ID, classification), threat levels clearly visualized, historical trend tables included, report opens in new window for printing
 
+### ISS Live Feed & Enhanced Satellite Tracking
+- **Functionality**: Real-time International Space Station tracking with live video feed integration, plus expanded orbital satellite constellation including Hubble, James Webb Space Telescope, and Earth observation satellites with live position updates
+- **Purpose**: Provide visual access to ISS live camera feeds and comprehensive orbital asset tracking for space-based intelligence gathering and satellite coverage planning
+- **Trigger**: Toggle "Satellites" layer on collaborative map, individual satellite markers clickable
+- **Progression**: User enables satellite layer → ISS and 10+ satellites appear with real-time positions → Clicks ISS marker → Views live NASA TV feed in popup → Sees current altitude, velocity, crew info → Clicks other satellites for orbital parameters → Positions update every 10 seconds → Can filter by satellite type
+- **Success criteria**: ISS position calculated using orbital mechanics, live NASA TV feed embedded and playable, shows current ISS crew roster, displays altitude (408km), velocity (7.66 km/s), orbital period (92.9 min), includes Hubble, JWST, Sentinel-1/2, Landsat-8/9, Terra, Aqua, NOAA-20, WorldView-3/4, positions update smoothly with animation
+
+### Real-Time Collaborative Annotations
+- **Functionality**: Team-shared annotation system with real-time synchronization allowing multiple analysts to add notes, alerts, and observations directly on the map with automatic sharing across all team members
+- **Purpose**: Enable distributed intelligence teams to collaborate in real-time by marking areas of interest, flagging threats, and sharing analysis without external communication tools
+- **Trigger**: Double-click on map to create annotation, annotations automatically sync via shared KV store
+- **Progression**: User double-clicks map location → Annotation dialog opens → Selects type (note/alert/observation) → Enters content → Saves → Annotation immediately appears for all team members → Other users see real-time updates → Users can delete their own annotations → Annotations persist across sessions → Can filter by annotation type or author
+- **Success criteria**: Annotations sync in real-time using useKV hook, all team members see updates within 1 second, annotations persist across sessions, color-coded by type (blue=note, red=alert, yellow=observation), shows author name and timestamp, supports deletion by original author, annotations included in PDF exports, annotations display on top of other map layers
+
+### Enhanced Weather Overlay with Live Data
+- **Functionality**: Real-time global meteorological data integration from Open-Meteo API displaying current temperature, precipitation, wind patterns, humidity, visibility, and pressure with automatic refresh and detailed location-specific forecasts
+- **Purpose**: Provide actionable weather intelligence for operational planning, threat correlation, and environmental impact assessment using actual real-time meteorological data
+- **Trigger**: Toggle "Weather Overlay" on collaborative map
+- **Progression**: User enables weather → Grid of weather stations appears globally → Each marker shows color-coded temperature → Clicks weather marker → Popup shows detailed conditions (temp, humidity, wind speed/direction, visibility, pressure, conditions description) → Data fetched live from Open-Meteo API → Auto-refreshes every 5 minutes → Can overlay with threat predictions to correlate weather with security events
+- **Success criteria**: Weather data fetched from Open-Meteo free API, grid covers global regions at configurable density, shows live current conditions not simulated data, temperature color gradient (blue cold → red hot), detailed popup with 8+ weather metrics, includes weather conditions text, wind direction shown with arrow icons, auto-refresh configurable, graceful fallback if API unavailable, weather data exported in PDF reports
+
 ### Emergent Pattern Detection
 - **Functionality**: Multi-domain intelligence fusion system that discovers non-obvious correlations across imagery, signals, cyber, economic, environmental, and social data sources, using continuous learning ML models to predict conflict events
 - **Purpose**: Uncover hidden causal chains and complex correlations that human analysts might miss by analyzing patterns across 6 disparate intelligence domains simultaneously
