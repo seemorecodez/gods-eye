@@ -1,8 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAutoRefresh } from '@/hooks/use-auto-refresh'
+import { useAuditLog } from '@/hooks/use-audit-log'
 import { fetchAllRepositories } from '@/lib/github-api'
 import { Repository } from '@/lib/types'
+import { exportChart } from '@/lib/chart-export'
 import { useState, useEffect } from 'react'
 import {
   LineChart,
@@ -29,8 +31,17 @@ import {
   Scatter,
   ZAxis
 } from 'recharts'
-import { ChartLine, ChartBar, ChartPie, Spinner, ArrowsClockwise } from '@phosphor-icons/react'
+import { ChartLine, ChartBar, ChartPie, Spinner, ArrowsClockwise, FileCsv, FileImage, FileSvg } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu'
+import { toast } from 'sonner'
 
 interface RepositoryMetrics {
   timestamp: number
@@ -66,6 +77,7 @@ export function AdvancedDataVisualization() {
   const [metrics, setMetrics] = useState<RepositoryMetrics[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const { logEvent } = useAuditLog()
 
   const loadData = async () => {
     try {
@@ -83,6 +95,12 @@ export function AdvancedDataVisualization() {
       }
 
       setMetrics(prev => [...prev.slice(-9), newMetric])
+      
+      logEvent('data:refresh', 'Data visualization refreshed', {
+        repositoryCount: repos.length,
+        totalStars: newMetric.totalStars,
+        totalForks: newMetric.totalForks
+      }, 'low')
     } catch (error) {
       console.error('Failed to load repository data:', error)
     } finally {
@@ -90,6 +108,49 @@ export function AdvancedDataVisualization() {
       setRefreshing(false)
     }
   }
+
+  const handleExport = async (chartId: string, chartName: string, data: any[], format: 'csv' | 'png' | 'svg') => {
+    try {
+      await exportChart(chartId, data, { filename: chartName, format })
+      
+      logEvent('data:export', `Exported ${chartName} as ${format.toUpperCase()}`, {
+        chartName,
+        format,
+        dataPoints: data.length
+      }, 'low')
+      
+      toast.success(`Chart exported as ${format.toUpperCase()}`)
+    } catch (error) {
+      toast.error(`Failed to export chart: ${error}`)
+      console.error(error)
+    }
+  }
+
+  const ExportButton = ({ chartId, chartName, data }: { chartId: string; chartName: string; data: any[] }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="outline">
+          Export
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuLabel>Export Format</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => handleExport(chartId, chartName, data, 'csv')}>
+          <FileCsv size={16} className="mr-2" />
+          CSV
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleExport(chartId, chartName, data, 'png')}>
+          <FileImage size={16} className="mr-2" />
+          PNG
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleExport(chartId, chartName, data, 'svg')}>
+          <FileSvg size={16} className="mr-2" />
+          SVG
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 
   useEffect(() => {
     loadData()
@@ -212,12 +273,18 @@ export function AdvancedDataVisualization() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-lg">Repository Growth Over Time</CardTitle>
-                <CardDescription>Tracked metrics across refresh intervals</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">Repository Growth Over Time</CardTitle>
+                    <CardDescription>Tracked metrics across refresh intervals</CardDescription>
+                  </div>
+                  <ExportButton chartId="growth-chart" chartName="repository-growth" data={timeSeriesData} />
+                </div>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={timeSeriesData}>
+                <div id="growth-chart">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={timeSeriesData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.30 0.02 250)" />
                     <XAxis
                       dataKey="time"
@@ -249,13 +316,19 @@ export function AdvancedDataVisualization() {
                     />
                   </AreaChart>
                 </ResponsiveContainer>
+              </div>
               </CardContent>
             </Card>
 
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-lg">Language Popularity by Stars</CardTitle>
-                <CardDescription>Total stars grouped by programming language</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">Language Popularity by Stars</CardTitle>
+                    <CardDescription>Total stars grouped by programming language</CardDescription>
+                  </div>
+                  <ExportButton chartId="language-chart" chartName="language-popularity" data={languageStats} />
+                </div>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>

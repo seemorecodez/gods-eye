@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useAuth } from '@/hooks/use-auth'
 import { usePermissions } from '@/hooks/use-permissions'
+import { useAuditLog } from '@/hooks/use-audit-log'
 import { ROLES, PERMISSIONS, UserRole, getRolePermissions } from '@/lib/roles'
 import { Shield, User, LockKey, CheckCircle, XCircle } from '@phosphor-icons/react'
 import { useState } from 'react'
@@ -13,6 +14,7 @@ import { toast } from 'sonner'
 export function RoleManagementPanel() {
   const { session, updateRole } = useAuth()
   const { hasPermission, userRole } = usePermissions()
+  const { logEvent } = useAuditLog()
   const [selectedRole, setSelectedRole] = useState<UserRole | undefined>(userRole)
 
   const canManageRoles = hasPermission('manage:users')
@@ -28,8 +30,22 @@ export function RoleManagementPanel() {
   }
 
   const handleRoleChange = (newRole: UserRole) => {
+    const oldRole = userRole
     setSelectedRole(newRole)
     updateRole(newRole)
+    
+    logEvent(
+      'role:update',
+      `Role changed from ${oldRole} to ${newRole}`,
+      {
+        previousRole: oldRole,
+        newRole: newRole,
+        roleName: ROLES[newRole].name,
+        permissionCount: ROLES[newRole].permissions.length
+      },
+      'medium'
+    )
+    
     toast.success(`Role updated to ${ROLES[newRole].name}`, {
       description: `You now have ${newRole} level permissions`
     })

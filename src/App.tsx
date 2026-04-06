@@ -5,7 +5,6 @@ import { Toaster } from '@/components/ui/sonner'
 import { toast } from 'sonner'
 import { RepositoryCard } from '@/components/RepositoryCard'
 import { DataSourceCard } from '@/components/DataSourceCard'
-import { InteractiveMap } from '@/components/InteractiveMap'
 import { CollaborativeMapEnhanced as CollaborativeMap } from '@/components/CollaborativeMapEnhanced'
 import { PipelineSimulator } from '@/components/PipelineSimulator'
 import { CommitActivityTimeline } from '@/components/CommitActivityTimeline'
@@ -17,6 +16,9 @@ import { APIMonitoringDashboard } from '@/components/APIMonitoringDashboard'
 import { AdvancedDataVisualization } from '@/components/AdvancedDataVisualization'
 import { RefreshSettingsPanel } from '@/components/RefreshSettingsPanel'
 import { RoleManagementPanel } from '@/components/RoleManagementPanel'
+import { HolographicGlobe } from '@/components/HolographicGlobe'
+import { NotificationPanel } from '@/components/NotificationPanel'
+import { AuditLogViewer } from '@/components/AuditLogViewer'
 import { ViewMode, Repository } from '@/lib/types'
 import { fetchAllRepositories } from '@/lib/github-api'
 import { dataSources } from '@/lib/data'
@@ -24,7 +26,8 @@ import { useHealthMonitor } from '@/hooks/use-health-monitor'
 import { useAuth } from '@/hooks/use-auth'
 import { useAutoRefresh } from '@/hooks/use-auto-refresh'
 import { usePermissions } from '@/hooks/use-permissions'
-import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner, GitCommit, Brain, Network, Bell, ChartBar, User, Gear, ArrowsClockwise, ShieldCheck } from '@phosphor-icons/react'
+import { useNotifications } from '@/hooks/use-notifications'
+import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner, GitCommit, Brain, Network, Bell, ChartBar, User, Gear, ArrowsClockwise, ShieldCheck, ClipboardText } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 
 function App() {
@@ -35,6 +38,7 @@ function App() {
   const { alerts, healthStatuses, acknowledgeAlert, acknowledgeAllAlerts } = useHealthMonitor(dataSources)
   const { session, isLoading: authLoading } = useAuth()
   const { canAccessView, hasPermission, userRole } = usePermissions()
+  const { unreadCount } = useNotifications()
 
   const loadRepositories = async () => {
     setLoading(true)
@@ -173,6 +177,23 @@ function App() {
                 Collab Map
               </TabsTrigger>
             )}
+            <TabsTrigger value="globe" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+              <Globe size={18} className="mr-2" weight="fill" />
+              3D Globe
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground relative">
+              <Bell size={18} className="mr-2" />
+              Notifications
+              {unreadCount > 0 && (
+                <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  {unreadCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="audit-log" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+              <ClipboardText size={18} className="mr-2" />
+              Audit Log
+            </TabsTrigger>
             {hasPermission('configure:refresh') && (
               <TabsTrigger value="refresh-settings" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
                 <ArrowsClockwise size={18} className="mr-2" />
@@ -327,6 +348,18 @@ function App() {
               </p>
               <CollaborativeMap />
             </div>
+          </TabsContent>
+
+          <TabsContent value="globe" className="space-y-6">
+            <HolographicGlobe />
+          </TabsContent>
+
+          <TabsContent value="notifications" className="space-y-6">
+            <NotificationPanel />
+          </TabsContent>
+
+          <TabsContent value="audit-log" className="space-y-6">
+            <AuditLogViewer />
           </TabsContent>
 
           <TabsContent value="guide" className="space-y-6">
