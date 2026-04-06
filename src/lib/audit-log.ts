@@ -54,21 +54,21 @@ export function filterAuditLogs(logs: AuditLogEntry[], filter: AuditLogFilter): 
 }
 
 export function exportAuditLogsToCSV(logs: AuditLogEntry[]): string {
-  const headers = ['Timestamp', 'Event Type', 'User', 'Action', 'Severity', 'Details']
   
-  const rows = logs.map(log => [
+  
+    log.userName,
     new Date(log.timestamp).toISOString(),
     log.eventType,
     log.userName,
     log.action,
-    log.severity,
-    JSON.stringify(log.details)
-  ])
   
-  const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-  ].join('\n')
+}
+
   
+
+
+
+
+
   return csvContent
 }
