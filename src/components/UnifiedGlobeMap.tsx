@@ -51,6 +51,7 @@ export function UnifiedGlobeMap() {
   
   const [loading, setLoading] = useState(true)
   const [loadingProgress, setLoadingProgress] = useState(0)
+  const [useRealData, setUseRealData] = useState(true)
   const [autoRotate, setAutoRotate] = useState(true)
   
   const [showFlights, setShowFlights] = useState(true)
@@ -100,31 +101,33 @@ export function UnifiedGlobeMap() {
       try {
         setLoadingProgress(10)
         
-        toast.info('Fetching live flight data from OpenSky Network...')
-        const flightData = await fetchRealFlights(500)
+        let flightData: Flight[]
+        if (useRealData) {
+          toast.info('Fetching live flight data from OpenSky Network...')
+          flightData = await fetchRealFlights(500)
+          toast.success(`Loaded ${flightData.length} real flights`)
+        } else {
+          flightData = generateFlights(500)
+        }
         setFlights(flightData)
-        toast.success(`Loaded ${flightData.length} live flights`)
         setLoadingProgress(25)
         
-        toast.info('Loading real-time camera feeds...')
+        toast.info('Loading camera feeds...')
         const cameraData = await fetchWindyWebcams(300)
         setCameras(cameraData)
         setLoadingProgress(40)
         
-        toast.info('Fetching satellite positions...')
         const satelliteData = fetchSatellitePasses()
         setSatellites(satelliteData)
         setLoadingProgress(55)
         
         if (showWeather) {
-          toast.info('Fetching live weather data from Open-Meteo...')
+          toast.info('Fetching live weather data...')
           const weather = await generateWeatherGrid(10)
           setWeatherData(weather)
-          toast.success(`Loaded ${weather.length} weather stations`)
         }
         setLoadingProgress(70)
         
-        toast.info('Generating AI threat predictions...')
         const threats = await generateThreatPredictions([])
         setThreatPredictions(threats)
         setLoadingProgress(85)
@@ -132,7 +135,7 @@ export function UnifiedGlobeMap() {
         setLoadingProgress(100)
         setLoading(false)
         
-        toast.success('All live data loaded successfully')
+        toast.success('All data loaded successfully')
       } catch (error) {
         console.error('Error loading data:', error)
         toast.error('Failed to load some data sources')
@@ -141,7 +144,7 @@ export function UnifiedGlobeMap() {
     }
     
     loadAllData()
-  }, [showWeather])
+  }, [useRealData, showWeather])
 
   useEffect(() => {
     if (!containerRef.current || loading) return
@@ -545,37 +548,36 @@ export function UnifiedGlobeMap() {
     }
   }
 
-  async function handleRefreshData() {
+  function handleRefreshData() {
     setLoading(true)
     setLoadingProgress(0)
     
-    try {
-      setLoadingProgress(20)
-      
-      toast.info('Refreshing live flight data...')
-      const flightData = await fetchRealFlights(500)
-      setFlights(flightData)
-      setLoadingProgress(50)
-      
-      toast.info('Refreshing camera feeds...')
-      const cameraData = await fetchWindyWebcams(300)
-      setCameras(cameraData)
-      setLoadingProgress(75)
-      
-      if (showWeather) {
-        toast.info('Refreshing weather data...')
-        const weather = await generateWeatherGrid(10)
-        setWeatherData(weather)
+    setTimeout(async () => {
+      try {
+        setLoadingProgress(20)
+        
+        let flightData: Flight[]
+        if (useRealData) {
+          toast.info('Refreshing live flight data...')
+          flightData = await fetchRealFlights(500)
+        } else {
+          flightData = generateFlights(500)
+        }
+        setFlights(flightData)
+        setLoadingProgress(60)
+        
+        const cameraData = await fetchWindyWebcams(300)
+        setCameras(cameraData)
+        setLoadingProgress(100)
+        
+        setLoading(false)
+        toast.success('Data refreshed successfully')
+      } catch (error) {
+        console.error('Error refreshing data:', error)
+        toast.error('Failed to refresh data')
+        setLoading(false)
       }
-      setLoadingProgress(100)
-      
-      setLoading(false)
-      toast.success('All data refreshed successfully')
-    } catch (error) {
-      console.error('Error refreshing data:', error)
-      toast.error('Failed to refresh data')
-      setLoading(false)
-    }
+    }, 500)
   }
 
   function handleAddAnnotation(lat: number, lng: number) {
@@ -644,7 +646,7 @@ export function UnifiedGlobeMap() {
             <div>
               <CardTitle className="text-2xl">Unified Intelligence Globe</CardTitle>
               <CardDescription>
-                Live flight tracking, real-time cameras, weather data, and AI-powered threat analysis
+                Interactive 3D visualization with live flight tracking, cameras, and intelligence layers
               </CardDescription>
             </div>
           </div>
@@ -668,6 +670,15 @@ export function UnifiedGlobeMap() {
               <FilePdf size={16} />
               Export PDF
             </Button>
+            
+            <div className="flex items-center gap-2">
+              <Label htmlFor="real-data" className="text-xs">Real Data</Label>
+              <Switch
+                id="real-data"
+                checked={useRealData}
+                onCheckedChange={setUseRealData}
+              />
+            </div>
             
             <div className="flex items-center gap-2">
               <Label htmlFor="auto-rotate" className="text-xs">Auto Rotate</Label>
@@ -912,12 +923,9 @@ export function UnifiedGlobeMap() {
                 </div>
               )}
               
-              <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-                <Badge variant="default" className="bg-green-500/20 border-green-500 text-green-100 backdrop-blur">
-                  🔴 LIVE DATA
-                </Badge>
-                <Badge variant="secondary" className="bg-background/80 backdrop-blur text-xs">
-                  {stats.totalFlights} Flights • {stats.activeCameras} Cameras
+              <div className="absolute top-4 left-4 z-10">
+                <Badge variant="default" className="bg-background/80 backdrop-blur">
+                  {useRealData ? 'Live Data' : 'Simulated Data'}
                 </Badge>
               </div>
             </div>
