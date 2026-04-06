@@ -20,9 +20,9 @@ export function useAuditLog() {
     }
 
     const entry = createAuditLogEntry(
-      eventType,
       session.userId,
       session.login,
+      eventType,
       action,
       severity,
       JSON.stringify(details)
