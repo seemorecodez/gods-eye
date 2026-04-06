@@ -2,10 +2,10 @@ import { useKV } from '@github/spark/hooks'
 
 export type AuditEventType = 
   | 'permission:change'
-  | 'role:update'
-  | 'data:refresh'
   | 'data:export'
-  | 'annotation:create'
+  | 'annotation:ed
+  | 'ml:predictio
+  | 'threat:update'
   | 'annotation:edit'
   | 'annotation:delete'
   | 'ml:prediction'
@@ -14,22 +14,22 @@ export type AuditEventType =
   | 'threat:acknowledge'
   | 'camera:add'
   | 'camera:remove'
-  | 'settings:update'
-  | 'user:login'
-  | 'user:logout'
-  | 'alert:acknowledge'
-
-export interface AuditLogEntry {
   id: string
-  timestamp: number
-  eventType: AuditEventType
+  eventType: Aud
+  userName: strin
+  details: Record<strin
+
+}
+export inter
+  userId?: number
+  dateTo?: number
+}
+export function cr
   userId: number
-  userName: string
-  action: string
-  details: Record<string, any>
-  ipAddress?: string
-  userAgent?: string
-  severity: 'low' | 'medium' | 'high' | 'critical'
+  action: string,
+  severity: AuditLog
+  return {
+    timestamp: Date.now(),
 }
 
 export interface AuditLogFilter {
@@ -51,6 +51,55 @@ export function createAuditEntry(
   return {
     id: `audit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     timestamp: Date.now(),
+    eventType,
+    userId,
+    userName,
+    action,
+    details,
+    severity
+  }
+}
+
+export function filterAuditLogs(logs: AuditLogEntry[], filter: AuditLogFilter): AuditLogEntry[] {
+  return logs.filter(log => {
+    if (filter.eventType && !filter.eventType.includes(log.eventType)) return false
+    if (filter.userId && log.userId !== filter.userId) return false
+    if (filter.dateFrom && log.timestamp < filter.dateFrom) return false
+    if (filter.dateTo && log.timestamp > filter.dateTo) return false
+    if (filter.severity && !filter.severity.includes(log.severity)) return false
+    return true
+  })
+}
+
+export function exportAuditLogsToCSV(logs: AuditLogEntry[]): string {
+  const headers = ['Timestamp', 'Event Type', 'User', 'Action', 'Severity', 'Details']
+  const rows = logs.map(log => [
+    new Date(log.timestamp).toISOString(),
+    log.eventType,
+    log.userName,
+    log.action,
+    log.severity,
+    JSON.stringify(log.details)
+  ])
+  
+  const csv = [
+    headers.join(','),
+    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+  ].join('\n')
+  
+  return csv
+}
+
+export async function logAuditEvent(
+  logs: AuditLogEntry[],
+  setLogs: (updater: (current: AuditLogEntry[]) => AuditLogEntry[]) => void,
+  entry: AuditLogEntry
+): Promise<void> {
+  setLogs(current => {
+    const newLogs = [...current, entry]
+    return newLogs.slice(-10000)
+  })
+}
     eventType,
     userId,
     userName,
