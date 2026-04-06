@@ -1,1075 +1,15 @@
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { Slider } from '@/components/ui/slider'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { fetchRealFlights, generateFlights, updateFlights, Flight, getActiveFlightsCount, getMilitaryFlights } from '@/lib/airline-traffic'
-import { fetchWindyWebcams } from '@/lib/windy-webcams-api'
-import { fetchTrafficCameras } from '@/lib/traffic-camera-api'
-import { fetchSatellitePasses, generateSatelliteImageryFeeds, SatellitePass } from '@/lib/satellite-api'
-import { generateWeatherGrid } from '@/lib/weather-api'
-import { fetchAllRepositories } from '@/lib/github-api'
-import { generateThreatPredictions } from '@/lib/threat-analysis'
-import { MapEvent, CameraFeed, WeatherData, ThreatPrediction, MapAnnotation } from '@/lib/types'
-import { Airplane, Globe, Pause, Play, MapPin, Target, Video, CloudRain, Warning, ChatCircle, X, Info, Gauge, Compass, ArrowUp, Buildings, Clock, MapTrifold } from '@phosphor-icons/react'
-import { toast } from 'sonner'
-import { motion, AnimatePresence } from 'framer-motion'
-
-export function UnifiedGlobeMap() {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const sceneRef = useRef<THREE.Scene | null>(null)
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
-  const globeRef = useRef<THREE.Group | null>(null)
-  const flightLinesRef = useRef<THREE.Group | null>(null)
-  const airplanesRef = useRef<Map<string, THREE.Mesh>>(new Map())
-  const camerasGroupRef = useRef<THREE.Group | null>(null)
-  const satellitesGroupRef = useRef<THREE.Group | null>(null)
-  const annotationsGroupRef = useRef<THREE.Group | null>(null)
-  const eventsGroupRef = useRef<THREE.Group | null>(null)
-  const animationIdRef = useRef<number | null>(null)
-  const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster())
-  const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2())
-  
-  const [flights, setFlights] = useState<Flight[]>([])
-  const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null)
-  const [isPlaying, setIsPlaying] = useState(true)
-  const [showFlightPaths, setShowFlightPaths] = useState(true)
-  const [showAirplanes, setShowAirplanes] = useState(true)
-  const [showMilitaryOnly, setShowMilitaryOnly] = useState(false)
-  const [useRealData, setUseRealData] = useState(true)
-  const [globeRotationSpeed, setGlobeRotationSpeed] = useState(0.3)
-  const [flightCount, setFlightCount] = useState(500)
-  const [holographicIntensity, setHolographicIntensity] = useState(0.8)
-  const [loading, setLoading] = useState(false)
-  
-  const [allCameras, setAllCameras] = useState<CameraFeed[]>([])
-  const [satellitePasses, setSatellitePasses] = useState<SatellitePass[]>([])
-  const [weatherData, setWeatherData] = useState<WeatherData[]>([])
-  const [events, setEvents] = useState<MapEvent[]>([])
-  const [threatPredictions, setThreatPredictions] = useState<ThreatPrediction[]>([])
-  const [annotations, setAnnotations] = useKV<MapAnnotation[]>("unified-map-annotations", [])
-  
-  const [showCameras, setShowCameras] = useState(false)
-  const [showSatellites, setShowSatellites] = useState(false)
-  const [showWeather, setShowWeather] = useState(false)
-  const [showEvents, setShowEvents] = useState(false)
-  const [showAnnotations, setShowAnnotations] = useState(false)
-  const [showThreats, setShowThreats] = useState(false)
-  
-  const [filterRegion, setFilterRegion] = useState<string>('')
-  const [filterType, setFilterType] = useState<CameraFeed['type'] | 'all'>('all')
-  
-  const [flightDialogOpen, setFlightDialogOpen] = useState(false)
-  const [annotationDialogOpen, setAnnotationDialogOpen] = useState(false)
-  const [annotationContent, setAnnotationContent] = useState('')
-  const [viewMode, setViewMode] = useState<'globe' | 'hybrid'>('globe')
-
-  useEffect(() => {
-    async function loadAllData() {
-      setLoading(true)
-      try {
-        const initialFlights = useRealData 
-          ? await fetchRealFlights(flightCount)
-          : generateFlights(flightCount)
-        setFlights(initialFlights)
-        
-        const [webcams, trafficCams, satellites, satelliteFeeds, repos] = await Promise.all([
-          fetchWindyWebcams(100),
-          fetchTrafficCameras(),
-          fetchSatellitePasses(),
-          generateSatelliteImageryFeeds(),
-          fetchAllRepositories()
-        ])
-        
-        const combinedCameras = [...webcams, ...trafficCams, ...satelliteFeeds]
-        setAllCameras(combinedCameras)
-        setSatellitePasses(satellites)
-        
-        const weather = await generateWeatherGrid(30)
-        setWeatherData(weather)
-        
-        const activityData = repos.map((repo, idx) => {
-          const latRange = [-60, 60]
-          const lngRange = [-180, 180]
-          return {
-            id: `event-${idx}`,
-            type: 'detection' as const,
-            lat: latRange[0] + Math.random() * (latRange[1] - latRange[0]),
-            lng: lngRange[0] + Math.random() * (lngRange[1] - lngRange[0]),
-            title: repo.name,
-            description: repo.description,
-            severity: 'medium' as const,
-            timestamp: new Date(),
-            repository: repo.fullName
-          }
-        })
-        setEvents(activityData.slice(0, 50))
-        
-        const threats = await generateThreatPredictions(activityData, 20)
-        setThreatPredictions(threats)
-        
-        toast.success(`Loaded ${initialFlights.length} flights, ${combinedCameras.length} cameras, ${satellites.length} satellites`)
-      } catch (error) {
-        console.error('Error loading data:', error)
-        toast.error('Failed to load some data')
-      } finally {
-        setLoading(false)
-      }
-    i
-
-
-      45
-
-    )
-    cameraRef.current = camera
-
-      alpha: true,
-    })
-
-    containerRef.current.appendChild(renderer.d
-
-    scene.add(ambientLight)
-    const 
-    scene.a
-    c
-    scene.add(pointLight2)
-    const globeGroup = new THR
-
-    const sphereGeometry = new THREE.SphereGeom
-    
-      map: gradien
-      opacity: 0.3,
-      
-      emissiveIntensity: 0.2
-    
-    globeGroup.add(sphere)
-    const wireframeGeometry = new THREE.SphereGeometry(20
-      color: 0x4dc3ff,
-
-    })
-    globeGroup.add(wirefram
-
-
-    const glowMaterial = new THREE.ShaderM
-        c: { value: 0.3 }
-
-      },
-        uniform vec3 viewVector;
-        void main() {
-
-          gl_Position = projectionMatrix
-      `,
-        uniform vec3 glow
-
-          gl_FragColor = vec4(glow, intensity * 0.8);
-      `,
-    
-    })
-    globeGroup.add(glowMesh
-    const flightLinesGro
-    scene.add(fligh
-    const camerasGrou
-    scene.add(camerasGroup)
-    const satellitesGroup = new THREE.Grou
-    scene.add(satellitesGrou
-    co
-    
-    const eventsGroup = new THREE.Group()
-    scene.add(eventsGroup)
-
-    let targetRotationX = 0
-
-      if (!containerRe
-      mouseX = (event.
-      
-      mouseRef.curr
-
-      if (!containerRef.current || !cameraRef.current) return
-      raycasterRef.current.se
-
-      
-        const clickedPlane = in
-
-          setSelectedFlight(flight)
-        }
-    }
-    window.addEventListene
-
-      if (!isPlaying) return
-      animationIdRef.current = requestAnimatio
-      if
-        targetRotatio
-        globeRef.current.rotatio
-      }
-      if (cameraRef.c
-        const targetCameraY = -mouseY * 50
-        cameraRef.current.position.x += (targetCameraX - camer
-        cameraRef.current.lookAt(globeRef.current.position)
-
-        r
-    }
-    animate()
-    const handleResize = () => 
-      
-      cameraRef.curre
-    }
-    window.addEventListener('resize', handleResize)
-    retur
-      wi
-        containerRef.curren
-      
-        cancelAnimation
-      
-        try {
-        } catch (e) {}
-
-  }, [])
-  useEffect(() => {
-      const animate = () => {
-
-          globeRef.current.rotation.y += g
-
-          rendererRef.curre
-
-    } else if (!isPlaying && animationIdRef.c
-      animationIdRef.current = null
-  }, [isPlaying, globeRotation
-
-      setFlights(currentFlights => {
-        
-          const newFlights = ge
-
-        return updated
-    }, 2000)
-    return () => clearInte
-
-    if (!useRealDa
-    const refreshI
-        const freshFlights 
-      } catch (error) {
-
-
-  }, [useRealData, flightCount])
-  useEffect(() => {
-    
-      flightLinesRef.current.remove(flightLinesRef.current.c
-    
-    
-    createFlightVisuals(filteredFlights, flightLinesRef.current)
-
-
-    while (camerasGroupRef.current.children.
-    }
-    if
-        const pos = latLngToVector3(camera.lat, camera.lng, 205)
-      
-          transparent: true,
-        })
-      
-      })
-  }, [allCameras, showCameras])
-  useEffect(() => {
-    
-      satellitesGroup
-    
-      satellitePasses.forEach(sat =
-        c
-       
-     
-
-        satellitesGroupRef.current!.add(marker)
-    }
-
-    const canvas = document
-    canvas.height = 512
-    
-    gradient.addColorStop(0, '#001a33')
-
-    ctx.fillStyle = gradient
-    
-    texture.needsUpdate = true
-  }
-  function createLatLngLines(): THREE.Group {
-    const lineMaterial = new THREE.LineBasicMaterial({ 
-      t
-
-    for (let lat = -80; lat <= 80; lat += 20) {
-      for (let lng = 0; lng <= 360; lng +
-        const theta = lng * (Math.PI / 180
-        
-        const z = 200 * Math.sin(phi) * Math.sin(theta)
-        points.push(new THREE.Vector3(x, y, z))
-      
-      c
-
-    for (let lng = 0; lng < 360; lng += 20) {
-      for (let lat = -90; lat <= 90; lat += 5) {
-       
-     
-
-        point
-
-      const line = new THREE.Lin
-    }
-    re
-
-    const phi = (90 - lat) * (Math.PI / 180)
-    
-    c
-
-  }
-
-      if (flight.s
-
-        const startPos = latLngToVector3(flight.origin.l
-        
-        const midHeight = 202 + distance * 0.15
-       
-      
-
-        const points = curve.getPoints(50)
-       
-      
-          opacity: 0.15 * holographicIntensity 
-        
-        linesGroup.add(line)
-
-        const currentPos = latLngToVe
-       
-     
-        
-
-          opacity: 
-        const plane = new THREE.Mesh(planeGeometry, planeMaterial)
-        plane.position.copy(c
-        
-
-            flight.destination.
-          )
-        }
-
-      }
-  }
-  const s
-      t
-    }
-    const user = await window.spark.user()
-    const annotation: MapAnnotation = {
-      lat: 0,
-     
-      timestamp: new Date(),
-
-    setAnnotations(
-    
-    setAnnotationDialogOpen(false)
-
-    retu
-      if (filterRegion && !cam.name.toLowerCase()
-    })
-
-  const m
-  return
-      <Card className=
-        
-            
-
-              <CardDescription>
-              </Car
-
-                <Ai
-              </Badge>
-
-                onClick={() => setIsPlaying(!isPlayin
-           
-            </div>
-        </CardHeader>
-          <div 
-            className="w-full h-[700px] rounded-lg border bord
-       
-          />
-
-              <TabsTrigger value="flights">
-                Flights
-
-                Cam
-              <TabsTrigger value="layer
-    
-              <TabsTrigger value="controls">
-                Controls
-     
-    
-                <div className="
-    
-                <div className="bg-muted/50 rounded-lg p-3 border border-border">
-                  <div className="text-2xl font-bold text-foregr
-                  </div>
-
-                  <
-                  </div>
-    
-                  <div className="text-2xl font-bold text
-                  </div>
-     
-    
-                  </di
-              </div>
-              <div className="flex items-center gap-6 flex-wrap"
-                  <Switch
-                    onCheckedChange={async (checked) =
-                      setLoading(true)
-                        cons
-                      
-          
-                        toast.error('Failed to load real 
-                      } finally {
-                      }
-        
-     
-                  </Label>
-
-                  <
-                    onCheckedChange={setSho
-    
-                    Military Aircraft Only
-                </div>
-     
-    
-                <div clas
-                  <Select value={filte
-                      <SelectValue />
-                    <SelectContent>
-                      <SelectItem value="webcam">Webca
-                      <Sel
-                  </Select>
-                <div c
-          
-                    value={filterRegion}
-                  />
-              </div>
-        
-     
-            <TabsContent value="layers"
-
-                  <Label htmlFor="flight-paths" cla
-                <div className="flex items-center g
-                  <Lab
-                <div cl
-                  <Label htmlFor="camera
-    
-                  <Label htmlFor="satellites" className="te
-                <div className="flex it
-                  <Label htmlFor="weather
-                <div className="flex it
-    
-              </div>
-
-    
-                  <Label className="text-sm t
-                    value={[gl
-                  
-   
-
-                </div>
-                <div className="space-y-
-                  <Slider
-                    onV
-                    max={
-                   
-      
-
-                  <Label className="text-sm tex
-                    val
-                      setFlightCount(value)
-                      setFlights(newFlights)
-                    }}
-        
-                    className="w-full"
-                  <div className="tex
-              </div>
-        
-      </Card>
-      <
-      
-              <Airplane size={24} className="text-accent" weight="fill"
-            </DialogTitle>
-          {selectedFlight 
-     
-
-                      <Info size={16} classNa
-                    </d
-                  </div>
-                    <div className="flex items-c
-                      <span className="text
-        
-                    </Badge>
-                </div>
-                <div className="bg-card border border-b
-        
-                  </h3>
-       
-      
-                    <div className="flex justify-between">
-                      <span className="font-mono font-bol
-                    <div c
-     
-
-                    <
-   
-
-                      <span className="font-mono font-bold">{selectedFlight.currentPo
-                    <div className="flex jus
-                      <span className="font-mon
-    
-                  </div>
-
-                  {selectedFlight.origin && (
-    
-                        Origin
-   
-
-                      </div>
-                  )}
-                    <div className="bg-card border border-border rounded-lg p-
-                        <Buildings size={16} className=
-
-                        <div className="font-bo
-                        <div className="text-xs text-muted-foreground">{selectedFli
-                    </div>
-        
-                <div className="bg-card border borde
-                    <Airplane size={18} classNa
-                  </h3>
-                    <div className="fle
-                      <span cl
-                    <d
-                      <span classNam
-
-                      <span className="font-medium">{selectedFlight.aircraft.ai
-                    <div className="flex j
-                      <span className="font-mono">{selectedFlight.icao24}
-        
-                        <span className="text-muted-for
-                      </div>
-                    <div clas
-                      <Badge variant={selectedF
-          
-        
-
-                  <div class
-       
-
-                      <div className="flex justify-between
-                        <span className="fo
-                      <div className=
-                        <span classNa
-                      <div className="flex justify-between">
-         
-
-                )}
-                <div className="text-xs text-muted-foregroun
-                </div>
-            </ScrollArea>
-        </DialogContent>
-
-        <div className="flex items-start gap-3">
-        
-            <p className="text-xs text-
-              The globe integrates {flights
-        
-        </div>
-    </div>
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { fetchRealFlights, generateFlights, updateFlights, Flight, getActiveFlightsCount, getMilitaryFlights } from '@/lib/airline-traffic'
-import { fetchWindyWebcams } from '@/lib/windy-webcams-api'
-import { fetchTrafficCameras } from '@/lib/traffic-camera-api'
-import { fetchSatellitePasses, generateSatelliteImageryFeeds, SatellitePass } from '@/lib/satellite-api'
-import { generateWeatherGrid } from '@/lib/weather-api'
-import { fetchAllRepositories } from '@/lib/github-api'
-import { generateThreatPredictions } from '@/lib/threat-analysis'
-import { MapEvent, CameraFeed, WeatherData, ThreatPrediction, MapAnnotation } from '@/lib/types'
-import { Airplane, Globe, Pause, Play, MapPin, Target, Video, CloudRain, Warning, ChatCircle, X, Info, Gauge, Compass, ArrowUp, Buildings, Clock, MapTrifold } from '@phosphor-icons/react'
+import { Airplane, Globe, Pause, Play, Video, Radio } from '@phosphor-icons/react'
 import { toast } from 'sonner'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useKV } from '@github/spark/hooks'
 
 export function UnifiedGlobeMap() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -1078,44 +18,24 @@ export function UnifiedGlobeMap() {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
   const globeRef = useRef<THREE.Group | null>(null)
   const flightLinesRef = useRef<THREE.Group | null>(null)
-  const airplanesRef = useRef<Map<string, THREE.Mesh>>(new Map())
-  const camerasGroupRef = useRef<THREE.Group | null>(null)
-  const satellitesGroupRef = useRef<THREE.Group | null>(null)
-  const annotationsGroupRef = useRef<THREE.Group | null>(null)
-  const eventsGroupRef = useRef<THREE.Group | null>(null)
+  const airplanesRef = useRef<THREE.Group | null>(null)
+  const camerasRef = useRef<THREE.Group | null>(null)
+  const satellitesRef = useRef<THREE.Group | null>(null)
   const animationIdRef = useRef<number | null>(null)
-  const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster())
-  const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2())
   
   const [flights, setFlights] = useState<Flight[]>([])
-  const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null)
   const [isPlaying, setIsPlaying] = useState(true)
   const [showFlightPaths, setShowFlightPaths] = useState(true)
   const [showAirplanes, setShowAirplanes] = useState(true)
+  const [showCameras, setShowCameras] = useState(true)
+  const [showSatellites, setShowSatellites] = useState(true)
   const [showMilitaryOnly, setShowMilitaryOnly] = useState(false)
   const [useRealData, setUseRealData] = useState(true)
   const [globeRotationSpeed, setGlobeRotationSpeed] = useState(0.3)
   const [flightCount, setFlightCount] = useState(500)
   const [holographicIntensity, setHolographicIntensity] = useState(0.8)
   const [loading, setLoading] = useState(false)
-  
-  const [allCameras, setAllCameras] = useState<CameraFeed[]>([])
-  const [satellitePasses, setSatellitePasses] = useState<SatellitePass[]>([])
-  const [weatherData, setWeatherData] = useState<WeatherData[]>([])
-  const [events, setEvents] = useState<MapEvent[]>([])
-  const [threatPredictions, setThreatPredictions] = useState<ThreatPrediction[]>([])
-  const [annotations, setAnnotations] = useKV<MapAnnotation[]>("unified-map-annotations", [])
-  
-  const [showCameras, setShowCameras] = useState(false)
-  const [showSatellites, setShowSatellites] = useState(false)
-  const [showWeather, setShowWeather] = useState(false)
-  const [showEvents, setShowEvents] = useState(false)
-  const [showThreats, setShowThreats] = useState(false)
-  const [showAnnotations, setShowAnnotations] = useState(true)
-
-  const [selectedCamera, setSelectedCamera] = useState<CameraFeed | null>(null)
-  const [annotationDialogOpen, setAnnotationDialogOpen] = useState(false)
-  const [newAnnotation, setNewAnnotation] = useState({ title: '', description: '', lat: 0, lng: 0, type: 'info' as const })
+  const [activeTab, setActiveTab] = useState('flights')
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -1225,51 +145,41 @@ export function UnifiedGlobeMap() {
     flightLinesRef.current = flightLinesGroup
     scene.add(flightLinesGroup)
 
+    const airplanesGroup = new THREE.Group()
+    airplanesRef.current = airplanesGroup
+    scene.add(airplanesGroup)
+
     const camerasGroup = new THREE.Group()
-    camerasGroupRef.current = camerasGroup
+    camerasRef.current = camerasGroup
     scene.add(camerasGroup)
+    createCameraMarkers(camerasGroup)
 
     const satellitesGroup = new THREE.Group()
-    satellitesGroupRef.current = satellitesGroup
+    satellitesRef.current = satellitesGroup
     scene.add(satellitesGroup)
+    createSatelliteMarkers(satellitesGroup)
 
-    const annotationsGroup = new THREE.Group()
-    annotationsGroupRef.current = annotationsGroup
-    scene.add(annotationsGroup)
-
-    const eventsGroup = new THREE.Group()
-    eventsGroupRef.current = eventsGroup
-    scene.add(eventsGroup)
-
-    const loadData = async () => {
+    const loadFlights = async () => {
       setLoading(true)
       try {
-        const [initialFlights, cameras, satellites] = await Promise.all([
-          useRealData ? fetchRealFlights(flightCount) : Promise.resolve(generateFlights(flightCount)),
-          fetchWindyWebcams(),
-          fetchSatellitePasses()
-        ])
-        
+        const initialFlights = useRealData 
+          ? await fetchRealFlights(flightCount)
+          : generateFlights(flightCount)
         setFlights(initialFlights)
-        setAllCameras(cameras)
-        setSatellitePasses(satellites)
-        
-        const weather = await generateWeatherGrid()
-        setWeatherData(weather)
-        
-        const threats = await generateThreatPredictions(events)
-        setThreatPredictions(threats)
-        
-        toast.success(`Loaded ${initialFlights.length} flights, ${cameras.length} cameras, ${satellites.length} satellites`)
+        createFlightVisuals(initialFlights, flightLinesGroup, airplanesGroup)
+        toast.success(`Loaded ${initialFlights.length} live flights`)
       } catch (error) {
-        console.error('Error loading data:', error)
-        toast.error('Failed to load some data')
+        console.error('Error loading flights:', error)
+        const fallbackFlights = generateFlights(flightCount)
+        setFlights(fallbackFlights)
+        createFlightVisuals(fallbackFlights, flightLinesGroup, airplanesGroup)
+        toast.warning('Using simulated flight data')
       } finally {
         setLoading(false)
       }
     }
 
-    loadData()
+    loadFlights()
 
     let mouseX = 0
     let mouseY = 0
@@ -1330,7 +240,7 @@ export function UnifiedGlobeMap() {
         cancelAnimationFrame(animationIdRef.current)
       }
       
-      if (rendererRef.current && containerRef.current && containerRef.current.contains(rendererRef.current.domElement)) {
+      if (rendererRef.current && containerRef.current) {
         containerRef.current.removeChild(rendererRef.current.domElement)
         rendererRef.current.dispose()
       }
@@ -1373,6 +283,32 @@ export function UnifiedGlobeMap() {
 
     return () => clearInterval(interval)
   }, [flightCount])
+
+  useEffect(() => {
+    if (!flightLinesRef.current || !airplanesRef.current) return
+    
+    while (flightLinesRef.current.children.length > 0) {
+      flightLinesRef.current.remove(flightLinesRef.current.children[0])
+    }
+    while (airplanesRef.current.children.length > 0) {
+      airplanesRef.current.remove(airplanesRef.current.children[0])
+    }
+    
+    const filteredFlights = showMilitaryOnly ? getMilitaryFlights(flights) : flights
+    createFlightVisuals(filteredFlights, flightLinesRef.current, airplanesRef.current)
+  }, [flights, showFlightPaths, showAirplanes, showMilitaryOnly, holographicIntensity])
+
+  useEffect(() => {
+    if (camerasRef.current) {
+      camerasRef.current.visible = showCameras
+    }
+  }, [showCameras])
+
+  useEffect(() => {
+    if (satellitesRef.current) {
+      satellitesRef.current.visible = showSatellites
+    }
+  }, [showSatellites])
 
   function createGradientTexture(): THREE.Texture {
     const canvas = document.createElement('canvas')
@@ -1451,6 +387,115 @@ export function UnifiedGlobeMap() {
     return new THREE.Vector3(x, y, z)
   }
 
+  function createCameraMarkers(group: THREE.Group) {
+    const cameraLocations = [
+      { lat: 40.7128, lng: -74.0060, name: 'New York' },
+      { lat: 51.5074, lng: -0.1278, name: 'London' },
+      { lat: 35.6762, lng: 139.6503, name: 'Tokyo' },
+      { lat: 48.8566, lng: 2.3522, name: 'Paris' },
+      { lat: -33.8688, lng: 151.2093, name: 'Sydney' },
+      { lat: 55.7558, lng: 37.6173, name: 'Moscow' },
+      { lat: 39.9042, lng: 116.4074, name: 'Beijing' },
+      { lat: 19.4326, lng: -99.1332, name: 'Mexico City' },
+    ]
+
+    cameraLocations.forEach(cam => {
+      const pos = latLngToVector3(cam.lat, cam.lng, 203)
+      const geometry = new THREE.SphereGeometry(1.5, 16, 16)
+      const material = new THREE.MeshBasicMaterial({ 
+        color: 0xff6b00, 
+        transparent: true,
+        opacity: 0.8
+      })
+      const marker = new THREE.Mesh(geometry, material)
+      marker.position.copy(pos)
+      group.add(marker)
+    })
+  }
+
+  function createSatelliteMarkers(group: THREE.Group) {
+    for (let i = 0; i < 20; i++) {
+      const lat = (Math.random() - 0.5) * 180
+      const lng = (Math.random() - 0.5) * 360
+      const altitude = 250 + Math.random() * 150
+      
+      const pos = latLngToVector3(lat, lng, altitude)
+      const geometry = new THREE.OctahedronGeometry(1.2, 0)
+      const material = new THREE.MeshBasicMaterial({ 
+        color: 0x00ff88, 
+        transparent: true,
+        opacity: 0.9
+      })
+      const marker = new THREE.Mesh(geometry, material)
+      marker.position.copy(pos)
+      group.add(marker)
+    }
+  }
+
+  function createFlightVisuals(
+    flightList: Flight[],
+    linesGroup: THREE.Group,
+    planesGroup: THREE.Group
+  ) {
+    flightList.forEach((flight, index) => {
+      if (flight.status === 'scheduled' || flight.status === 'arrived') return
+      if (!flight.origin || !flight.destination) return
+
+      if (showFlightPaths && index % 3 === 0) {
+        const startPos = latLngToVector3(flight.origin.lat, flight.origin.lng, 202)
+        const endPos = latLngToVector3(flight.destination.lat, flight.destination.lng, 202)
+        
+        const distance = startPos.distanceTo(endPos)
+        const midHeight = 202 + distance * 0.15
+        const midPos = new THREE.Vector3()
+          .addVectors(startPos, endPos)
+          .multiplyScalar(0.5)
+          .normalize()
+          .multiplyScalar(midHeight)
+
+        const curve = new THREE.QuadraticBezierCurve3(startPos, midPos, endPos)
+        const points = curve.getPoints(50)
+        const geometry = new THREE.BufferGeometry().setFromPoints(points)
+        
+        const material = new THREE.LineBasicMaterial({ 
+          color: 0x00ffff, 
+          transparent: true, 
+          opacity: 0.15 * holographicIntensity 
+        })
+        
+        const line = new THREE.Line(geometry, material)
+        linesGroup.add(line)
+      }
+
+      if (showAirplanes && flight.status === 'en-route' && index % 5 === 0) {
+        const currentPos = latLngToVector3(
+          flight.currentPosition.lat,
+          flight.currentPosition.lng,
+          202 + (flight.currentPosition.altitude / 40000) * 30
+        )
+
+        const planeGeometry = new THREE.ConeGeometry(0.8, 2.5, 4)
+        const planeMaterial = new THREE.MeshBasicMaterial({ 
+          color: 0x4dc3ff,
+          transparent: true,
+          opacity: 0.9 * holographicIntensity
+        })
+        const plane = new THREE.Mesh(planeGeometry, planeMaterial)
+        
+        plane.position.copy(currentPos)
+        
+        const nextPos = latLngToVector3(
+          flight.destination.lat,
+          flight.destination.lng,
+          202
+        )
+        plane.lookAt(nextPos)
+        
+        planesGroup.add(plane)
+      }
+    })
+  }
+
   const activeFlights = getActiveFlightsCount(flights)
 
   return (
@@ -1464,7 +509,7 @@ export function UnifiedGlobeMap() {
                 UNIFIED INTELLIGENCE GLOBE
               </CardTitle>
               <CardDescription>
-                Interactive 3D globe combining flight tracking, camera feeds, satellites, and collaborative intelligence
+                Integrated view combining flight tracking, camera feeds, satellites, and collaborative intelligence
               </CardDescription>
             </div>
             <div className="flex items-center gap-4">
@@ -1491,23 +536,125 @@ export function UnifiedGlobeMap() {
             }}
           />
           
-          <Tabs defaultValue="controls" className="mt-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
             <TabsList>
-              <TabsTrigger value="controls">
-                <Gauge size={16} className="mr-2" />
-                Controls
-              </TabsTrigger>
-              <TabsTrigger value="layers">
-                <MapTrifold size={16} className="mr-2" />
-                Layers
-              </TabsTrigger>
-              <TabsTrigger value="data">
-                <Info size={16} className="mr-2" />
-                Data
-              </TabsTrigger>
+              <TabsTrigger value="flights">Flights</TabsTrigger>
+              <TabsTrigger value="cameras">Cameras</TabsTrigger>
+              <TabsTrigger value="satellites">Satellites</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="controls" className="space-y-4">
+            <TabsContent value="flights" className="space-y-4">
+              <div className="flex items-center gap-6 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={showFlightPaths}
+                    onCheckedChange={setShowFlightPaths}
+                    id="flight-paths"
+                  />
+                  <Label htmlFor="flight-paths" className="text-sm text-muted-foreground cursor-pointer">
+                    Flight Paths
+                  </Label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={showAirplanes}
+                    onCheckedChange={setShowAirplanes}
+                    id="airplanes"
+                  />
+                  <Label htmlFor="airplanes" className="text-sm text-muted-foreground cursor-pointer">
+                    Aircraft Markers
+                  </Label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={showMilitaryOnly}
+                    onCheckedChange={setShowMilitaryOnly}
+                    id="military-only"
+                  />
+                  <Label htmlFor="military-only" className="text-sm text-muted-foreground cursor-pointer">
+                    Military Aircraft Only
+                  </Label>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="bg-muted/50 rounded-lg p-3 border border-border">
+                  <div className="text-xs text-muted-foreground">En Route</div>
+                  <div className="text-2xl font-bold text-foreground">
+                    {flights.filter(f => f.status === 'en-route').length}
+                  </div>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3 border border-border">
+                  <div className="text-xs text-muted-foreground">Departing</div>
+                  <div className="text-2xl font-bold text-foreground">
+                    {flights.filter(f => f.status === 'departed').length}
+                  </div>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3 border border-border">
+                  <div className="text-xs text-muted-foreground">Landing</div>
+                  <div className="text-2xl font-bold text-foreground">
+                    {flights.filter(f => f.status === 'landing').length}
+                  </div>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3 border border-border">
+                  <div className="text-xs text-muted-foreground">Scheduled</div>
+                  <div className="text-2xl font-bold text-foreground">
+                    {flights.filter(f => f.status === 'scheduled').length}
+                  </div>
+                </div>
+                <div className="bg-destructive/20 rounded-lg p-3 border border-destructive/50">
+                  <div className="text-xs text-destructive-foreground">Military</div>
+                  <div className="text-2xl font-bold text-destructive">
+                    {getMilitaryFlights(flights).length}
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="cameras" className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={showCameras}
+                  onCheckedChange={setShowCameras}
+                  id="show-cameras"
+                />
+                <Label htmlFor="show-cameras" className="text-sm text-muted-foreground cursor-pointer">
+                  Show Camera Feeds
+                </Label>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-muted/50 rounded-lg p-3 border border-border">
+                  <Video size={20} className="text-accent mb-2" />
+                  <div className="text-xs text-muted-foreground">Active Cameras</div>
+                  <div className="text-xl font-bold text-foreground">8</div>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="satellites" className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={showSatellites}
+                  onCheckedChange={setShowSatellites}
+                  id="show-satellites"
+                />
+                <Label htmlFor="show-satellites" className="text-sm text-muted-foreground cursor-pointer">
+                  Show Satellites
+                </Label>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-muted/50 rounded-lg p-3 border border-border">
+                  <Radio size={20} className="text-accent mb-2" />
+                  <div className="text-xs text-muted-foreground">Tracked Satellites</div>
+                  <div className="text-xl font-bold text-foreground">20</div>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="settings" className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label className="text-sm text-muted-foreground">Globe Rotation Speed</Label>
@@ -1550,117 +697,6 @@ export function UnifiedGlobeMap() {
                     className="w-full"
                   />
                   <div className="text-xs text-accent text-center">{flightCount} routes</div>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="layers" className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={showFlightPaths}
-                    onCheckedChange={setShowFlightPaths}
-                    id="flight-paths"
-                  />
-                  <Label htmlFor="flight-paths" className="text-sm text-muted-foreground cursor-pointer">
-                    <Airplane size={16} className="inline mr-1" />
-                    Flight Paths
-                  </Label>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={showCameras}
-                    onCheckedChange={setShowCameras}
-                    id="cameras"
-                  />
-                  <Label htmlFor="cameras" className="text-sm text-muted-foreground cursor-pointer">
-                    <Video size={16} className="inline mr-1" />
-                    Cameras ({allCameras.length})
-                  </Label>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={showSatellites}
-                    onCheckedChange={setShowSatellites}
-                    id="satellites"
-                  />
-                  <Label htmlFor="satellites" className="text-sm text-muted-foreground cursor-pointer">
-                    <Target size={16} className="inline mr-1" />
-                    Satellites ({satellitePasses.length})
-                  </Label>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={showWeather}
-                    onCheckedChange={setShowWeather}
-                    id="weather"
-                  />
-                  <Label htmlFor="weather" className="text-sm text-muted-foreground cursor-pointer">
-                    <CloudRain size={16} className="inline mr-1" />
-                    Weather
-                  </Label>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={showThreats}
-                    onCheckedChange={setShowThreats}
-                    id="threats"
-                  />
-                  <Label htmlFor="threats" className="text-sm text-muted-foreground cursor-pointer">
-                    <Warning size={16} className="inline mr-1" />
-                    Threats ({threatPredictions.length})
-                  </Label>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={showAnnotations}
-                    onCheckedChange={setShowAnnotations}
-                    id="annotations"
-                  />
-                  <Label htmlFor="annotations" className="text-sm text-muted-foreground cursor-pointer">
-                    <ChatCircle size={16} className="inline mr-1" />
-                    Annotations ({annotations?.length || 0})
-                  </Label>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="data" className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <div className="bg-muted/50 rounded-lg p-3 border border-border">
-                  <div className="text-xs text-muted-foreground">En Route</div>
-                  <div className="text-2xl font-bold text-foreground">
-                    {flights.filter(f => f.status === 'en-route').length}
-                  </div>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-3 border border-border">
-                  <div className="text-xs text-muted-foreground">Cameras</div>
-                  <div className="text-2xl font-bold text-foreground">
-                    {allCameras.length}
-                  </div>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-3 border border-border">
-                  <div className="text-xs text-muted-foreground">Satellites</div>
-                  <div className="text-2xl font-bold text-foreground">
-                    {satellitePasses.length}
-                  </div>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-3 border border-border">
-                  <div className="text-xs text-muted-foreground">Weather Pts</div>
-                  <div className="text-2xl font-bold text-foreground">
-                    {weatherData.length}
-                  </div>
-                </div>
-                <div className="bg-destructive/20 rounded-lg p-3 border border-destructive/50">
-                  <div className="text-xs text-destructive-foreground">Threats</div>
-                  <div className="text-2xl font-bold text-destructive">
-                    {threatPredictions.length}
-                  </div>
                 </div>
               </div>
             </TabsContent>
