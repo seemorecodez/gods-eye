@@ -1,21 +1,21 @@
 export type AuditEventType = 
-  | 'permission:change'
+  | 'data:export'
   | 'data:export'
   | 'data:refresh'
-  | 'threat:update'
-  | 'camera:add'
   | 'role:update'
+export interface
+  timestamp: numb
 
-export interface AuditLogEntry {
-  id: string
-  timestamp: number
-  eventType: AuditEventType
-  userId: number
-  userName: string
   action: string
-  details: Record<string, any>
+  severity: 
+
+  eventType?: AuditEventTyp
+  dateFrom?: num
+  severity?: Audit
+
+  eventType: AuditEventType,
   severity: 'low' | 'medium' | 'high'
-}
+)
 
 export interface AuditLogFilter {
   eventType?: AuditEventType[]
@@ -73,5 +73,5 @@ export function exportAuditLogsToCSV(logs: AuditLogEntry[]): string {
     ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
   ].join('\n')
   
-  return csvContent
+
 }
