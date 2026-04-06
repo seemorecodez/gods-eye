@@ -1,11 +1,8 @@
 export type AuditEventType = 
   | 'permission:change'
-  | 'data:refresh'
   | 'data:export'
-  | 'annotation:edit'
   | 'threat:update'
-  | 'threat:create'
-  | 'alert:acknowledge'
+  | 'threat:update'
   | 'camera:add'
   | 'role:update'
 
@@ -66,12 +63,12 @@ export function exportAuditLogsToCSV(logs: AuditLogEntry[]): string {
     log.eventType,
     log.userName,
     log.action,
-    log.severity,
-    JSON.stringify(log.details)
-  ])
+    JSON.stringif
   
-  return [
-    headers.join(','),
-    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-  ].join('\n')
-}
+    
+  
+
+
+
+
+
