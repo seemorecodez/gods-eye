@@ -1,23 +1,33 @@
 export type AuditEventType = 
   | 'data:refresh'
+  | 'data:export'
   | 'settings:change'
+  | 'settings:update'
   | 'user:logout'
   | 'user:login'
   | 'role:update'
-  | 'permission:revoke
+  | 'permission:change'
+  | 'permission:revoke'
   | 'system:start'
+  | 'annotation:create'
+  | 'annotation:edit'
+  | 'annotation:delete'
+  | 'ml:prediction'
+  | 'threat:create'
+  | 'threat:update'
+  | 'camera:add'
+  | 'camera:remove'
+  | 'alert:acknowledge'
 
+export interface AuditLogEntry {
   id: string
+  timestamp: number
   userId: number
-
-  severity: 'low' | 'medium' | '
-}
-export interface Au
-  eventType?: Au
   userName: string
   eventType: AuditEventType
   action: string
   severity: 'low' | 'medium' | 'high' | 'critical'
+  details?: string
 }
 
 export interface AuditLogFilter {
@@ -33,7 +43,8 @@ export function createAuditLogEntry(
   userId: number,
   userName: string,
   action: string,
-  severity: AuditLogEntry['severity'] = 'low'
+  severity: AuditLogEntry['severity'] = 'low',
+  details?: string
 ): AuditLogEntry {
   return {
     id: crypto.randomUUID(),
@@ -42,7 +53,8 @@ export function createAuditLogEntry(
     userName,
     eventType,
     action,
-    severity
+    severity,
+    details
   }
 }
 
@@ -62,9 +74,19 @@ export function filterAuditLogs(
 
 export function exportAuditLogsAsCSV(logs: AuditLogEntry[]): string {
   const headers = ['ID', 'Timestamp', 'User ID', 'User Name', 'Event Type', 'Action', 'Severity']
+  const rows = logs.map(log => [
+    log.id,
+    new Date(log.timestamp).toISOString(),
+    log.userId.toString(),
+    log.userName,
+    log.eventType,
+    log.action,
+    log.severity
   ])
   return [
-    ...rows.map(row => row.map(cell => `"$
+    headers.join(','),
+    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+  ].join('\n')
 }
 
 
