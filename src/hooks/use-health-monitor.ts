@@ -5,12 +5,14 @@ import { DataSource } from '@/lib/types'
 export function useHealthMonitor(dataSources: DataSource[]) {
   const [alerts, setAlerts] = useState<HealthAlert[]>([])
   const [healthStatuses, setHealthStatuses] = useState<Map<string, 'active' | 'warning' | 'critical'>>(new Map())
+  const [isRateLimited, setIsRateLimited] = useState(false)
+  const [rateLimitResetTime, setRateLimitResetTime] = useState<Date | null>(null)
 
   useEffect(() => {
     const unsubscribe = healthMonitor.onAlertsChanged(setAlerts)
 
     dataSources.forEach(ds => {
-      healthMonitor.startMonitoring(ds, 30000)
+      healthMonitor.startMonitoring(ds, 60000)
     })
 
     const statusInterval = setInterval(() => {
@@ -19,7 +21,9 @@ export function useHealthMonitor(dataSources: DataSource[]) {
         newStatuses.set(ds.id, healthMonitor.getHealthStatus(ds.id))
       })
       setHealthStatuses(newStatuses)
-    }, 5000)
+      setIsRateLimited(healthMonitor.isRateLimited())
+      setRateLimitResetTime(healthMonitor.getRateLimitResetTime())
+    }, 10000)
 
     return () => {
       unsubscribe()
@@ -47,6 +51,8 @@ export function useHealthMonitor(dataSources: DataSource[]) {
   return {
     alerts,
     healthStatuses,
+    isRateLimited,
+    rateLimitResetTime,
     acknowledgeAlert,
     acknowledgeAllAlerts,
     getMetrics,

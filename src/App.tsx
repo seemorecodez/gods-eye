@@ -36,7 +36,7 @@ function App() {
   const [repositories, setRepositories] = useState<Repository[]>([])
   const [loading, setLoading] = useState(true)
   
-  const { alerts, healthStatuses, acknowledgeAlert, acknowledgeAllAlerts } = useHealthMonitor(dataSources)
+  const { alerts, healthStatuses, isRateLimited, rateLimitResetTime, acknowledgeAlert, acknowledgeAllAlerts } = useHealthMonitor(dataSources)
   const { session, isLoading: authLoading } = useAuth()
   const { canAccessView, hasPermission, userRole } = usePermissions()
   const { unreadCount } = useNotifications()
@@ -117,6 +117,20 @@ function App() {
           </div>
           <Separator className="bg-border" />
         </header>
+
+        {isRateLimited && rateLimitResetTime && (
+          <div className="mb-6 p-4 bg-[oklch(0.75_0.18_80_/_0.1)] border border-[oklch(0.75_0.18_80)] rounded-lg">
+            <div className="flex items-center gap-3">
+              <ArrowsClockwise size={20} className="text-[oklch(0.75_0.18_80)]" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-foreground">GitHub API Rate Limit Active</p>
+                <p className="text-xs text-muted-foreground">
+                  Health checks paused until {rateLimitResetTime.toLocaleTimeString()}. All data sources assumed healthy during this time.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <Tabs value={activeView} onValueChange={(v) => setActiveView(v as ViewMode)} className="space-y-6">
           <TabsList className="bg-card border border-border p-1">

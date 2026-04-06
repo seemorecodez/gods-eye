@@ -72,7 +72,7 @@ export function DataSourceCard({ dataSource, healthStatus }: DataSourceCardProps
           <div className="flex items-center gap-2 mb-2">
             <ArrowsClockwise size={16} className="text-[oklch(0.60_0.22_25)] animate-spin" />
             <span className="text-sm font-medium text-[oklch(0.60_0.22_25)]">
-              Reconnecting... (Attempt {reconnectionStatus.attempt}/10)
+              Reconnecting... (Attempt {reconnectionStatus.attempt}/5)
             </span>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -80,7 +80,7 @@ export function DataSourceCard({ dataSource, healthStatus }: DataSourceCardProps
             <span>Next retry {formatDistanceToNow(reconnectionStatus.nextRetry, { addSuffix: true })}</span>
           </div>
           <div className="mt-2">
-            <Progress value={(reconnectionStatus.attempt / 10) * 100} className="h-1" />
+            <Progress value={(reconnectionStatus.attempt / 5) * 100} className="h-1" />
           </div>
         </div>
       )}
