@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useKV } from '@github/spark/hooks'
-import { AuditLogEntry, AuditEventType, filterAuditLogs, exportAuditLogsToCSV } from '@/lib/audit-log'
+import { AuditLogEntry, AuditEventType, filterAuditLogs, exportAuditLogsAsCSV } from '@/lib/audit-log'
 import { ClipboardText, Download, Funnel, MagnifyingGlass, Warning } from '@phosphor-icons/react'
 import { useState, useMemo } from 'react'
 import { formatDistanceToNow } from 'date-fns'
@@ -76,7 +76,7 @@ export function AuditLogViewer() {
 
   const handleExportCSV = () => {
     try {
-      const csv = exportAuditLogsToCSV(filteredLogs)
+      const csv = exportAuditLogsAsCSV(filteredLogs)
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
       const link = document.createElement('a')
       const url = URL.createObjectURL(blob)

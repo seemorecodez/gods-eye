@@ -148,6 +148,6 @@ export function createNotificationFromAuditLog(
     userId: entry.userId,
     userName: entry.userName,
     actionType: entry.eventType,
-    metadata: entry.details
+    metadata: entry.details ? { details: entry.details } : undefined
   }
 }

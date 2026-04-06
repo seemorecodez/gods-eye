@@ -24,8 +24,8 @@ export function useAuditLog() {
       session.userId,
       session.login,
       action,
-      details,
-      severity
+      severity,
+      JSON.stringify(details)
     )
 
     setAuditLogs(current => {
