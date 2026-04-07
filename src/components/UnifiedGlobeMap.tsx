@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Slider } from '@/components/ui/slider'
 import { MapAnnotation, CameraFeed, WeatherData, ThreatPrediction, MLPrediction } from '@/lib/types'
 import { Flight, fetchRealFlights, generateFlights, getMilitaryFlights, getCivilianFlights } from '@/lib/airline-traffic'
 import { fetchWindyWebcams } from '@/lib/windy-webcams-api'
@@ -20,7 +21,7 @@ import { fetchSatellitePasses, generateSatelliteImageryFeeds, SatellitePass } fr
 import { generateWeatherGrid } from '@/lib/weather-api'
 import { generateThreatPredictions } from '@/lib/threat-analysis'
 import { generatePDFReport } from '@/lib/pdf-export'
-import { Globe, Airplane, Video, CloudRain, Warning, FilePdf, Spinner, MapPin, ChatCircle, Planet, Eye, Target, ArrowsClockwise, X, Funnel, ShieldCheck, Gear, ChartBar } from '@phosphor-icons/react'
+import { Globe, Airplane, Video, CloudRain, Warning, FilePdf, Spinner, MapPin, ChatCircle, Planet, Eye, Target, ArrowsClockwise, X, Funnel, ShieldCheck, Gear, ChartBar, Plus, Minus, Play, Pause, Path } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import * as THREE from 'three'
@@ -33,13 +34,25 @@ interface GlobePoint {
   data: any
 }
 
+interface CameraAnimation {
+  type: 'orbit' | 'flyTo' | 'circle'
+  duration: number
+  targetPosition?: { lat: number; lng: number }
+  radius?: number
+  height?: number
+  speed?: number
+}
+
 export function UnifiedGlobeMap() {
   const containerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const sceneRef = useRef<THREE.Scene | null>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
   const globeRef = useRef<THREE.Mesh | null>(null)
+  const cloudsRef = useRef<THREE.Mesh | null>(null)
   const animationFrameRef = useRef<number | null>(null)
+  const connectionLinesRef = useRef<THREE.Group | null>(null)
+  const markersRef = useRef<THREE.Group | null>(null)
   
   const [flights, setFlights] = useState<Flight[]>([])
   const [cameras, setCameras] = useState<CameraFeed[]>([])
@@ -53,6 +66,11 @@ export function UnifiedGlobeMap() {
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [useRealData, setUseRealData] = useState(true)
   const [autoRotate, setAutoRotate] = useState(true)
+  const [cameraDistance, setCameraDistance] = useState(300)
+  const [showConnectionLines, setShowConnectionLines] = useState(true)
+  const [animationPlaying, setAnimationPlaying] = useState(false)
+  const [currentAnimation, setCurrentAnimation] = useState<CameraAnimation | null>(null)
+  const animationTimeRef = useRef(0)
   
   const [showFlights, setShowFlights] = useState(true)
   const [showCameras, setShowCameras] = useState(true)
@@ -77,6 +95,11 @@ export function UnifiedGlobeMap() {
   
   const [filterProvider, setFilterProvider] = useState<string>('all')
   const [filterType, setFilterType] = useState<CameraFeed['type'] | 'all'>('all')
+  
+  const isDraggingRef = useRef(false)
+  const previousMousePositionRef = useRef({ x: 0, y: 0 })
+  const targetRotationRef = useRef({ x: 0, y: 0 })
+  const currentRotationRef = useRef({ x: 0, y: 0 })
 
   const filteredFlights = useMemo(() => {
     if (militaryOnly) {
@@ -159,7 +182,7 @@ export function UnifiedGlobeMap() {
     sceneRef.current = scene
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
-    camera.position.z = 300
+    camera.position.z = cameraDistance
     cameraRef.current = camera
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
@@ -344,6 +367,12 @@ export function UnifiedGlobeMap() {
   }, [loading, autoRotate])
 
   useEffect(() => {
+    if (cameraRef.current) {
+      cameraRef.current.position.z = cameraDistance
+    }
+  }, [cameraDistance])
+
+  useEffect(() => {
     if (!sceneRef.current || loading) return
     
     sceneRef.current.children = sceneRef.current.children.filter(child => 
@@ -456,6 +485,8 @@ export function UnifiedGlobeMap() {
   }
 
   function addDataPoints(scene: THREE.Scene) {
+    const allPoints: GlobePoint[] = []
+    
     if (showFlights && filteredFlights.length > 0) {
       filteredFlights.forEach(flight => {
         const position = latLngToVector3(
@@ -494,6 +525,7 @@ export function UnifiedGlobeMap() {
           data: flight
         }
         marker.userData = { type: 'flight', point }
+        allPoints.push(point)
         
         scene.add(marker)
       })
@@ -533,6 +565,7 @@ export function UnifiedGlobeMap() {
           data: camera
         }
         marker.userData = { type: 'camera', point }
+        allPoints.push(point)
         
         scene.add(marker)
       })
@@ -575,6 +608,7 @@ export function UnifiedGlobeMap() {
           data: sat
         }
         marker.userData = { type: 'satellite', point }
+        allPoints.push(point)
         
         scene.add(marker)
       })
@@ -692,9 +726,51 @@ export function UnifiedGlobeMap() {
           data: annotation
         }
         marker.userData = { type: 'annotation', point }
+        allPoints.push(point)
         
         scene.add(marker)
       })
+    }
+    
+    if (showConnectionLines && allPoints.length > 1) {
+      const connectionGroup = new THREE.Group()
+      
+      for (let i = 0; i < Math.min(allPoints.length, 50); i++) {
+        const point1 = allPoints[i]
+        const nearbyPoints = allPoints
+          .filter(p => p.id !== point1.id && p.type !== point1.type)
+          .sort((a, b) => {
+            const dist1 = Math.sqrt(Math.pow(a.lat - point1.lat, 2) + Math.pow(a.lng - point1.lng, 2))
+            const dist2 = Math.sqrt(Math.pow(b.lat - point1.lat, 2) + Math.pow(b.lng - point1.lng, 2))
+            return dist1 - dist2
+          })
+          .slice(0, 2)
+        
+        nearbyPoints.forEach(point2 => {
+          const pos1 = latLngToVector3(point1.lat, point1.lng, 102)
+          const pos2 = latLngToVector3(point2.lat, point2.lng, 102)
+          
+          const curve = new THREE.QuadraticBezierCurve3(
+            pos1,
+            new THREE.Vector3().addVectors(pos1, pos2).multiplyScalar(0.5).normalize().multiplyScalar(110),
+            pos2
+          )
+          
+          const points = curve.getPoints(20)
+          const lineGeometry = new THREE.BufferGeometry().setFromPoints(points)
+          const lineMaterial = new THREE.LineBasicMaterial({
+            color: 0x4fc3f7,
+            transparent: true,
+            opacity: 0.15,
+            linewidth: 1
+          })
+          
+          const line = new THREE.Line(lineGeometry, lineMaterial)
+          connectionGroup.add(line)
+        })
+      }
+      
+      scene.add(connectionGroup)
     }
   }
 
@@ -891,8 +967,43 @@ export function UnifiedGlobeMap() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4">
-              <ScrollArea className="h-[400px] pr-3">
+              <ScrollArea className="h-[500px] pr-3">
                 <div className="space-y-3">
+                  <div className="space-y-3 pb-3 border-b border-border">
+                    <Label className="text-xs font-semibold text-muted-foreground">CAMERA ZOOM</Label>
+                    <div className="flex items-center gap-2">
+                      <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setCameraDistance(Math.max(150, cameraDistance - 20))}>
+                        <Plus size={16} />
+                      </Button>
+                      <Slider
+                        value={[cameraDistance]}
+                        onValueChange={([val]) => setCameraDistance(val)}
+                        min={150}
+                        max={500}
+                        step={10}
+                        className="flex-1"
+                      />
+                      <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setCameraDistance(Math.min(500, cameraDistance + 20))}>
+                        <Minus size={16} />
+                      </Button>
+                    </div>
+                    <div className="text-xs text-center text-muted-foreground">Distance: {cameraDistance}</div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                    <Path size={16} className="text-accent" weight="fill" />
+                    <Label htmlFor="show-connections" className="text-sm font-medium flex-1 cursor-pointer">
+                      Connection Lines
+                    </Label>
+                    <Switch
+                      id="show-connections"
+                      checked={showConnectionLines}
+                      onCheckedChange={setShowConnectionLines}
+                    />
+                  </div>
+                  
+                  <Separator />
+                  
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
                       <Airplane size={16} className="text-green-500" weight="fill" />
