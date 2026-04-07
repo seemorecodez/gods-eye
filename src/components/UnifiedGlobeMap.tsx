@@ -1286,18 +1286,18 @@ export function UnifiedGlobeMap() {
             </div>
             
             {!loading && (
+                <Badge 
+                  variant="outline" 
+                  className="bg-card/95 backdrop-blur-xl border-2 border-border shadow-xl text-xs px-3 py-1.5 font-medium"
+                >
+                  {autoRotate ? '🔄 Auto Rotating' : '👆 Drag to Rotate'}
+                </Badge>
+              )}
+            </div>
+            
+            {!loading && (
               <div className="absolute bottom-4 left-4 right-4 z-10">
                 <div className="bg-card/95 backdrop-blur-xl border-2 border-accent/40 rounded-xl shadow-2xl p-4">
-                  <div className="grid grid-cols-3 md:grid-cols-6 gap-4 text-center">
-                    <div className="space-y-1.5">
-                      <div className="text-xs text-muted-foreground font-medium tracking-wide">FLIGHTS</div>
-                      <div className="text-2xl font-bold text-foreground tabular-nums">{stats.totalFlights}</div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="text-xs text-muted-foreground font-medium tracking-wide">MILITARY</div>
-                      <div className="text-2xl font-bold text-red-500 tabular-nums">{stats.militaryFlights}</div>
-                    </div>
-                    <div className="space-y-1.5">
                       <div className="text-xs text-muted-foreground font-medium tracking-wide">CAMERAS</div>
                       <div className="text-2xl font-bold text-cyan-500 tabular-nums">{stats.activeCameras}</div>
                     </div>
