@@ -15,6 +15,58 @@ export interface SentimentAnalysis {
   region?: string
 }
 
+export interface SentimentTrend {
+  sourceName: string
+  sourceType: string
+  dataPoints: Array<{
+    timestamp: Date
+    score: number
+    sentiment: string
+  }>
+}
+
+export interface ScheduledAnalysisConfig {
+  id: string
+  analysisType: 'github' | 'global' | 'region'
+  region?: string
+  intervalMinutes: number
+  enabled: boolean
+  lastRun?: Date
+  nextRun?: Date
+}
+
+export function calculateSentimentTrends(analyses: SentimentAnalysis[]): SentimentTrend[] {
+  const grouped = new Map<string, SentimentAnalysis[]>()
+  
+  analyses.forEach(analysis => {
+    const key = `${analysis.sourceType}-${analysis.sourceName}`
+    if (!grouped.has(key)) {
+      grouped.set(key, [])
+    }
+    grouped.get(key)!.push(analysis)
+  })
+  
+  const trends: SentimentTrend[] = []
+  
+  grouped.forEach((items, key) => {
+    const sorted = items.sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    )
+    
+    trends.push({
+      sourceName: sorted[0].sourceName,
+      sourceType: sorted[0].sourceType,
+      dataPoints: sorted.map(item => ({
+        timestamp: item.timestamp,
+        score: item.sentimentScore,
+        sentiment: item.overallSentiment
+      }))
+    })
+  })
+  
+  return trends
+}
+
 export async function analyzeGitHubSentiment(): Promise<SentimentAnalysis> {
   const repositories = await fetchAllRepositories()
   

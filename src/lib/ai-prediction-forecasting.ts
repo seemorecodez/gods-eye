@@ -31,6 +31,26 @@ export interface ForecastTrend {
   timestamp: Date
 }
 
+export interface ModelComparison {
+  id: string
+  category: ForecastPrediction['category']
+  region: string
+  models: Array<{
+    modelName: string
+    prediction: string
+    probability: number
+    confidence: number
+    accuracy: number
+    processingTime: number
+  }>
+  consensus: {
+    prediction: string
+    averageProbability: number
+    modelAgreement: number
+  }
+  timestamp: Date
+}
+
 const REGIONS = [
   'Middle East',
   'Eastern Europe',
@@ -159,4 +179,69 @@ export async function generateMultiCategoryForecasts(): Promise<ForecastPredicti
   }
   
   return forecasts
+}
+
+export async function compareModels(
+  category: ForecastPrediction['category'],
+  region: string
+): Promise<ModelComparison> {
+  const models = [
+    { name: 'GPT-4o Deep Analysis', temp: 0.3, approach: 'conservative' },
+    { name: 'GPT-4o Rapid Assessment', temp: 0.7, approach: 'moderate' },
+    { name: 'GPT-4o High Variance', temp: 0.9, approach: 'aggressive' }
+  ]
+
+  const modelResults = []
+
+  for (const model of models) {
+    const startTime = Date.now()
+    
+    const promptText = `You are an AI forecasting model using ${model.approach} analysis approach. Generate a prediction.
+
+Category: ${category}
+Region: ${region}
+Analysis Style: ${model.approach}
+
+Return your analysis as a JSON object with this exact structure:
+{
+  "prediction": "Clear prediction statement",
+  "probability": (number between 0 and 1),
+  "confidence": (number between 0 and 1),
+  "accuracy": (estimated model accuracy between 0 and 1)
+}`
+
+    const response = await window.spark.llm(promptText, 'gpt-4o', true)
+    const parsed = JSON.parse(response)
+    const processingTime = Date.now() - startTime
+
+    modelResults.push({
+      modelName: model.name,
+      prediction: parsed.prediction,
+      probability: parsed.probability,
+      confidence: parsed.confidence,
+      accuracy: parsed.accuracy,
+      processingTime
+    })
+  }
+
+  const avgProbability = modelResults.reduce((sum, m) => sum + m.probability, 0) / modelResults.length
+  const probabilities = modelResults.map(m => m.probability)
+  const variance = probabilities.reduce((sum, p) => sum + Math.pow(p - avgProbability, 2), 0) / probabilities.length
+  const modelAgreement = 1 - Math.sqrt(variance)
+
+  const consensusPrediction = modelResults
+    .sort((a, b) => b.confidence - a.confidence)[0].prediction
+
+  return {
+    id: `comparison-${Date.now()}`,
+    category,
+    region,
+    models: modelResults,
+    consensus: {
+      prediction: consensusPrediction,
+      averageProbability: avgProbability,
+      modelAgreement
+    },
+    timestamp: new Date()
+  }
 }

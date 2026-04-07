@@ -6,15 +6,17 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ExportButton } from '@/components/ExportButton'
-import { Brain, Spinner, TrendUp, TrendDown, LineSegments, Calendar, Target } from '@phosphor-icons/react'
+import { Brain, Spinner, TrendUp, TrendDown, LineSegments, Calendar, Target, ChartBar } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import {
   ForecastPrediction,
   ForecastTrend,
+  ModelComparison,
   generateForecast,
   generateTrendForecast,
-  generateMultiCategoryForecasts
+  generateMultiCategoryForecasts,
+  compareModels
 } from '@/lib/ai-prediction-forecasting'
 
 const CATEGORIES: ForecastPrediction['category'][] = [
@@ -36,12 +38,23 @@ const CATEGORY_COLORS = {
 export function AIPredictionForecasting() {
   const [forecasts, setForecasts] = useKV<ForecastPrediction[]>('ai-forecasts', [])
   const [trends, setTrends] = useKV<ForecastTrend[]>('ai-trends', [])
+  const [comparisons, setComparisons] = useKV<ModelComparison[]>('ai-model-comparisons', [])
   const [loading, setLoading] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<ForecastPrediction['category']>('conflict')
-  const [activeTab, setActiveTab] = useState<'forecasts' | 'trends'>('forecasts')
+  const [activeTab, setActiveTab] = useState<'forecasts' | 'trends' | 'comparison'>('forecasts')
+  const [comparisonRegion, setComparisonRegion] = useState<string>('Middle East')
 
   const currentForecasts = forecasts || []
   const currentTrends = trends || []
+  const currentComparisons = comparisons || []
+
+  const REGIONS = [
+    'Middle East',
+    'Eastern Europe',
+    'North Africa',
+    'Central Asia',
+    'East Asia'
+  ]
 
   const runSingleForecast = async () => {
     setLoading(true)
@@ -97,9 +110,26 @@ export function AIPredictionForecasting() {
     if (activeTab === 'forecasts') {
       setForecasts([])
       toast.success('Forecasts cleared')
-    } else {
+    } else if (activeTab === 'trends') {
       setTrends([])
       toast.success('Trends cleared')
+    } else {
+      setComparisons([])
+      toast.success('Comparisons cleared')
+    }
+  }
+
+  const runModelComparison = async () => {
+    setLoading(true)
+    try {
+      const comparison = await compareModels(selectedCategory, comparisonRegion)
+      setComparisons((current) => [comparison, ...(current || [])].slice(0, 10))
+      toast.success('Model comparison completed')
+    } catch (error) {
+      console.error('Error comparing models:', error)
+      toast.error('Failed to compare models')
+    } finally {
+      setLoading(false)
     }
   }
 
