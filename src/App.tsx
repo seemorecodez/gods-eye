@@ -20,6 +20,10 @@ import { RoleManagementPanel } from '@/components/RoleManagementPanel'
 import { HolographicGlobe } from '@/components/HolographicGlobe'
 import { NotificationPanel } from '@/components/NotificationPanel'
 import { AuditLogViewer } from '@/components/AuditLogViewer'
+import { AISentimentAnalysis } from '@/components/AISentimentAnalysis'
+import { AIPredictionForecasting } from '@/components/AIPredictionForecasting'
+import { AICorrelationVisualization } from '@/components/AICorrelationVisualization'
+import { AIStreamingThreatMonitor } from '@/components/AIStreamingThreatMonitor'
 import { ViewMode, Repository } from '@/lib/types'
 import { fetchAllRepositories } from '@/lib/github-api'
 import { dataSources } from '@/lib/data'
@@ -28,7 +32,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useAutoRefresh } from '@/hooks/use-auto-refresh'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useNotifications } from '@/hooks/use-notifications'
-import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner, GitCommit, Brain, Network, Bell, ChartBar, User, Gear, ArrowsClockwise, ShieldCheck, ClipboardText } from '@phosphor-icons/react'
+import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner, GitCommit, Brain, Network, Bell, ChartBar, User, Gear, ArrowsClockwise, ShieldCheck, ClipboardText, Warning } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 
 function App() {
@@ -209,6 +213,30 @@ function App() {
               <ClipboardText size={18} className="mr-2" />
               Audit Log
             </TabsTrigger>
+            {canAccessView('ai-sentiment') && (
+              <TabsTrigger value="ai-sentiment" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                <Brain size={18} className="mr-2" weight="fill" />
+                AI Sentiment
+              </TabsTrigger>
+            )}
+            {canAccessView('ai-forecasting') && (
+              <TabsTrigger value="ai-forecasting" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                <Brain size={18} className="mr-2" weight="fill" />
+                AI Forecasting
+              </TabsTrigger>
+            )}
+            {canAccessView('ai-correlation') && (
+              <TabsTrigger value="ai-correlation" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                <Network size={18} className="mr-2" weight="fill" />
+                AI Correlation
+              </TabsTrigger>
+            )}
+            {canAccessView('ai-streaming') && (
+              <TabsTrigger value="ai-streaming" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+                <Warning size={18} className="mr-2" weight="fill" />
+                AI Stream Monitor
+              </TabsTrigger>
+            )}
             {hasPermission('configure:refresh') && (
               <TabsTrigger value="refresh-settings" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
                 <ArrowsClockwise size={18} className="mr-2" />
@@ -381,6 +409,22 @@ function App() {
 
           <TabsContent value="audit-log" className="space-y-6">
             <AuditLogViewer />
+          </TabsContent>
+
+          <TabsContent value="ai-sentiment" className="space-y-6">
+            <AISentimentAnalysis />
+          </TabsContent>
+
+          <TabsContent value="ai-forecasting" className="space-y-6">
+            <AIPredictionForecasting />
+          </TabsContent>
+
+          <TabsContent value="ai-correlation" className="space-y-6">
+            <AICorrelationVisualization />
+          </TabsContent>
+
+          <TabsContent value="ai-streaming" className="space-y-6">
+            <AIStreamingThreatMonitor />
           </TabsContent>
 
           <TabsContent value="guide" className="space-y-6">

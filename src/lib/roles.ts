@@ -123,6 +123,30 @@ export const PERMISSIONS: Record<string, Permission> = {
     name: 'Configure Refresh Intervals',
     description: 'Set data refresh intervals',
     category: 'admin'
+  },
+  'view:ai-sentiment': {
+    id: 'view:ai-sentiment',
+    name: 'View AI Sentiment Analysis',
+    description: 'Access AI-powered sentiment analysis',
+    category: 'ai'
+  },
+  'view:ai-forecasting': {
+    id: 'view:ai-forecasting',
+    name: 'View AI Forecasting',
+    description: 'Access AI prediction forecasting',
+    category: 'ai'
+  },
+  'view:ai-correlation': {
+    id: 'view:ai-correlation',
+    name: 'View AI Correlation',
+    description: 'Access AI correlation visualization',
+    category: 'ai'
+  },
+  'view:ai-streaming': {
+    id: 'view:ai-streaming',
+    name: 'View AI Streaming Monitor',
+    description: 'Access real-time AI threat monitoring',
+    category: 'ai'
   }
 }
 
@@ -154,6 +178,8 @@ export const ROLES: Record<UserRole, RoleDefinition> = {
       'create:annotation',
       'edit:annotation',
       'run:ml-prediction',
+      'view:ai-sentiment',
+      'view:ai-forecasting',
       'export:pdf',
       'export:data',
       'acknowledge:alerts'
@@ -175,6 +201,10 @@ export const ROLES: Record<UserRole, RoleDefinition> = {
       'delete:annotation',
       'run:ml-prediction',
       'retrain:model',
+      'view:ai-sentiment',
+      'view:ai-forecasting',
+      'view:ai-correlation',
+      'view:ai-streaming',
       'export:pdf',
       'export:data',
       'manage:threats',
