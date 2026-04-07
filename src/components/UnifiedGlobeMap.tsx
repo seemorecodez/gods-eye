@@ -64,6 +64,8 @@ export function UnifiedGlobeMap() {
   
   const [selectedItem, setSelectedItem] = useState<GlobePoint | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [hoveredItem, setHoveredItem] = useState<GlobePoint | null>(null)
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null)
   
   const [annotationDialogOpen, setAnnotationDialogOpen] = useState(false)
   const [newAnnotation, setNewAnnotation] = useState<{ lat: number; lng: number } | null>(null)
@@ -225,10 +227,36 @@ export function UnifiedGlobeMap() {
     let targetRotationY = 0
 
     const handleMouseMove = (event: MouseEvent) => {
-      if (!containerRef.current) return
+      if (!containerRef.current || !cameraRef.current) return
       const rect = containerRef.current.getBoundingClientRect()
       mouseX = ((event.clientX - rect.left) / width) * 2 - 1
       mouseY = -((event.clientY - rect.top) / height) * 2 + 1
+      
+      const raycaster = new THREE.Raycaster()
+      raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), cameraRef.current)
+      
+      const points = scene.children.filter(child => 
+        child.userData.type && child.userData.type !== 'globe'
+      )
+      
+      const intersects = raycaster.intersectObjects(points)
+      
+      if (intersects.length > 0) {
+        const hovered = intersects[0].object
+        if (hovered.userData.point) {
+          setHoveredItem(hovered.userData.point)
+          setTooltipPosition({ x: event.clientX, y: event.clientY })
+          if (containerRef.current) {
+            containerRef.current.style.cursor = 'pointer'
+          }
+        }
+      } else {
+        setHoveredItem(null)
+        setTooltipPosition(null)
+        if (containerRef.current) {
+          containerRef.current.style.cursor = autoRotate ? 'default' : 'grab'
+        }
+      }
     }
 
     const handleClick = (event: MouseEvent) => {
@@ -1275,6 +1303,389 @@ export function UnifiedGlobeMap() {
           </div>
         </DialogContent>
       </Dialog>
+      
+      <AnimatePresence>
+        {hoveredItem && tooltipPosition && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.15 }}
+            className="fixed z-50 pointer-events-none"
+            style={{
+              left: tooltipPosition.x + 15,
+              top: tooltipPosition.y + 15,
+            }}
+          >
+            <Card className="w-[320px] shadow-2xl border-2 border-accent/50 bg-card/95 backdrop-blur">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  {hoveredItem.type === 'flight' && (
+                    <>
+                      <Airplane size={16} className="text-accent" weight="fill" />
+                      Flight {hoveredItem.data.callsign}
+                    </>
+                  )}
+                  {hoveredItem.type === 'camera' && (
+                    <>
+                      <Video size={16} className="text-accent" weight="fill" />
+                      {hoveredItem.data.name}
+                    </>
+                  )}
+                  {hoveredItem.type === 'satellite' && (
+                    <>
+                      <Planet size={16} className="text-accent" weight="fill" />
+                      {hoveredItem.data.name}
+                    </>
+                  )}
+                  {hoveredItem.type === 'weather' && (
+                    <>
+                      <CloudRain size={16} className="text-accent" weight="fill" />
+                      Weather Data
+                    </>
+                  )}
+                  {hoveredItem.type === 'threat' && (
+                    <>
+                      <Warning size={16} className="text-accent" weight="fill" />
+                      Threat Assessment
+                    </>
+                  )}
+                  {hoveredItem.type === 'annotation' && (
+                    <>
+                      <MapPin size={16} className="text-accent" weight="fill" />
+                      Annotation
+                    </>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-xs">
+                {hoveredItem.type === 'flight' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-muted-foreground">Type:</span>
+                        <Badge 
+                          variant={hoveredItem.data.isMilitary ? 'destructive' : 'secondary'}
+                          className="ml-1 text-xs"
+                        >
+                          {hoveredItem.data.aircraft.type}
+                        </Badge>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">ICAO24:</span>
+                        <span className="ml-1 font-mono">{hoveredItem.data.icao24}</span>
+                      </div>
+                    </div>
+                    <Separator />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <div className="text-muted-foreground">Altitude</div>
+                        <div className="font-semibold text-base">{hoveredItem.data.currentPosition.altitude.toFixed(0)} ft</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Speed</div>
+                        <div className="font-semibold text-base">{hoveredItem.data.currentPosition.speed.toFixed(0)} kt</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Heading</div>
+                        <div className="font-semibold">{hoveredItem.data.currentPosition.heading.toFixed(0)}°</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Vert. Rate</div>
+                        <div className="font-semibold">{hoveredItem.data.currentPosition.verticalRate.toFixed(0)} ft/min</div>
+                      </div>
+                    </div>
+                    <Separator />
+                    <div>
+                      <div className="text-muted-foreground">Position</div>
+                      <div className="font-mono text-xs">
+                        {hoveredItem.data.currentPosition.lat.toFixed(4)}°, {hoveredItem.data.currentPosition.lng.toFixed(4)}°
+                      </div>
+                    </div>
+                    {hoveredItem.data.origin && (
+                      <>
+                        <Separator />
+                        <div>
+                          <div className="text-muted-foreground">Origin</div>
+                          <div className="font-medium">{hoveredItem.data.origin.name} ({hoveredItem.data.origin.code})</div>
+                          <div className="text-muted-foreground text-xs">{hoveredItem.data.origin.country}</div>
+                        </div>
+                      </>
+                    )}
+                    {hoveredItem.data.destination && (
+                      <div>
+                        <div className="text-muted-foreground">Destination</div>
+                        <div className="font-medium">{hoveredItem.data.destination.name} ({hoveredItem.data.destination.code})</div>
+                        <div className="text-muted-foreground text-xs">{hoveredItem.data.destination.country}</div>
+                      </div>
+                    )}
+                    {hoveredItem.data.squawk && (
+                      <>
+                        <Separator />
+                        <div>
+                          <div className="text-muted-foreground">Squawk</div>
+                          <div className="font-mono font-semibold">{hoveredItem.data.squawk}</div>
+                        </div>
+                      </>
+                    )}
+                    <div>
+                      <div className="text-muted-foreground">Status</div>
+                      <Badge variant="outline" className="text-xs">{hoveredItem.data.status}</Badge>
+                    </div>
+                  </>
+                )}
+                
+                {hoveredItem.type === 'camera' && (
+                  <>
+                    <div className="space-y-2">
+                      <div>
+                        <div className="text-muted-foreground">Provider</div>
+                        <div className="font-medium">{hoveredItem.data.provider}</div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <div className="text-muted-foreground">Type</div>
+                          <Badge variant="outline" className="text-xs">{hoveredItem.data.type}</Badge>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Status</div>
+                          <Badge 
+                            variant={hoveredItem.data.status === 'online' ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {hoveredItem.data.status}
+                          </Badge>
+                        </div>
+                      </div>
+                      <Separator />
+                      <div>
+                        <div className="text-muted-foreground">Location</div>
+                        <div className="font-mono text-xs">
+                          {hoveredItem.data.lat.toFixed(4)}°, {hoveredItem.data.lng.toFixed(4)}°
+                        </div>
+                      </div>
+                      {hoveredItem.data.location && (
+                        <div>
+                          <div className="text-muted-foreground">Area</div>
+                          <div className="font-medium">{hoveredItem.data.location}</div>
+                        </div>
+                      )}
+                      {hoveredItem.data.resolution && (
+                        <div>
+                          <div className="text-muted-foreground">Resolution</div>
+                          <div className="font-medium">{hoveredItem.data.resolution}</div>
+                        </div>
+                      )}
+                      {hoveredItem.data.lastUpdate && (
+                        <div>
+                          <div className="text-muted-foreground">Last Update</div>
+                          <div className="text-xs">{new Date(hoveredItem.data.lastUpdate).toLocaleString()}</div>
+                        </div>
+                      )}
+                    </div>
+                    <Separator />
+                    <div className="text-muted-foreground text-xs italic">
+                      Click for live stream access
+                    </div>
+                  </>
+                )}
+                
+                {hoveredItem.type === 'satellite' && (
+                  <>
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <div className="text-muted-foreground">NORAD ID</div>
+                          <div className="font-mono font-semibold">{hoveredItem.data.noradId}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Type</div>
+                          <div className="font-medium">{hoveredItem.data.type || 'Satellite'}</div>
+                        </div>
+                      </div>
+                      <Separator />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <div className="text-muted-foreground">Altitude</div>
+                          <div className="font-semibold text-base">{hoveredItem.data.altitude} km</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Velocity</div>
+                          <div className="font-semibold text-base">{hoveredItem.data.velocity.toFixed(2)} km/s</div>
+                        </div>
+                      </div>
+                      <Separator />
+                      <div>
+                        <div className="text-muted-foreground">Position</div>
+                        <div className="font-mono text-xs">
+                          {hoveredItem.data.lat.toFixed(4)}°, {hoveredItem.data.lng.toFixed(4)}°
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Next Pass</div>
+                        <div className="font-medium text-xs">{new Date(hoveredItem.data.nextPass).toLocaleString()}</div>
+                      </div>
+                      {hoveredItem.data.visibility && (
+                        <div>
+                          <div className="text-muted-foreground">Visibility</div>
+                          <Badge variant="outline" className="text-xs">{hoveredItem.data.visibility}</Badge>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+                
+                {hoveredItem.type === 'weather' && (
+                  <>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="text-muted-foreground">Temperature</div>
+                        <div className="text-2xl font-bold">{hoveredItem.data.temperature.toFixed(1)}°C</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Conditions</div>
+                        <div className="font-medium">{hoveredItem.data.conditions}</div>
+                      </div>
+                      <Separator />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <div className="text-muted-foreground">Humidity</div>
+                          <div className="font-semibold">{hoveredItem.data.humidity.toFixed(0)}%</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Wind</div>
+                          <div className="font-semibold">{hoveredItem.data.windSpeed.toFixed(1)} km/h</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Visibility</div>
+                          <div className="font-semibold">{hoveredItem.data.visibility.toFixed(1)} km</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Pressure</div>
+                          <div className="font-semibold">{hoveredItem.data.pressure.toFixed(0)} hPa</div>
+                        </div>
+                      </div>
+                      <Separator />
+                      <div>
+                        <div className="text-muted-foreground">Location</div>
+                        <div className="font-mono text-xs">
+                          {hoveredItem.data.lat.toFixed(4)}°, {hoveredItem.data.lng.toFixed(4)}°
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+                
+                {hoveredItem.type === 'threat' && (
+                  <>
+                    <div className="space-y-2">
+                      <div>
+                        <div className="text-muted-foreground mb-1">Threat Level</div>
+                        <Badge 
+                          variant={
+                            hoveredItem.data.threatLevel === 'critical' ? 'destructive' :
+                            hoveredItem.data.threatLevel === 'high' ? 'default' : 'secondary'
+                          }
+                          className="text-sm font-bold"
+                        >
+                          {hoveredItem.data.threatLevel?.toUpperCase() || hoveredItem.data.level?.toUpperCase()}
+                        </Badge>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground mb-1">Confidence</div>
+                        <div className="flex items-center gap-2">
+                          <Progress value={hoveredItem.data.confidence * 100} className="flex-1 h-2" />
+                          <span className="font-semibold">{(hoveredItem.data.confidence * 100).toFixed(0)}%</span>
+                        </div>
+                      </div>
+                      <Separator />
+                      <div>
+                        <div className="text-muted-foreground">Location</div>
+                        <div className="font-mono text-xs">
+                          {hoveredItem.data.lat.toFixed(4)}°, {hoveredItem.data.lng.toFixed(4)}°
+                        </div>
+                        {hoveredItem.data.region && (
+                          <div className="font-medium text-xs mt-1">{hoveredItem.data.region}</div>
+                        )}
+                      </div>
+                      <Separator />
+                      <div>
+                        <div className="text-muted-foreground mb-1">Contributing Factors</div>
+                        <ul className="list-disc list-inside space-y-0.5 text-xs">
+                          {hoveredItem.data.factors?.slice(0, 3).map((factor: string, idx: number) => (
+                            <li key={idx}>{factor}</li>
+                          ))}
+                          {hoveredItem.data.factors?.length > 3 && (
+                            <li className="text-muted-foreground italic">+{hoveredItem.data.factors.length - 3} more...</li>
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                    <Separator />
+                    <div className="text-muted-foreground text-xs italic">
+                      Click for full assessment details
+                    </div>
+                  </>
+                )}
+                
+                {hoveredItem.type === 'annotation' && (
+                  <>
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <div className="text-muted-foreground">Type</div>
+                          <Badge 
+                            variant={
+                              hoveredItem.data.type === 'alert' ? 'destructive' :
+                              hoveredItem.data.type === 'observation' ? 'default' : 'secondary'
+                            }
+                            className="text-xs"
+                          >
+                            {hoveredItem.data.type}
+                          </Badge>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Author</div>
+                          <div className="font-medium text-xs">{hoveredItem.data.author}</div>
+                        </div>
+                      </div>
+                      <Separator />
+                      <div>
+                        <div className="text-muted-foreground">Location</div>
+                        <div className="font-mono text-xs">
+                          {hoveredItem.data.lat.toFixed(4)}°, {hoveredItem.data.lng.toFixed(4)}°
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Created</div>
+                        <div className="text-xs">{new Date(hoveredItem.data.timestamp).toLocaleString()}</div>
+                      </div>
+                      <Separator />
+                      <div>
+                        <div className="text-muted-foreground mb-1">Content</div>
+                        <div className="text-xs p-2 bg-muted rounded border border-border">
+                          {hoveredItem.data.content.length > 100 
+                            ? hoveredItem.data.content.substring(0, 100) + '...'
+                            : hoveredItem.data.content
+                          }
+                        </div>
+                      </div>
+                    </div>
+                    {hoveredItem.data.content.length > 100 && (
+                      <>
+                        <Separator />
+                        <div className="text-muted-foreground text-xs italic">
+                          Click to view full content
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Card>
   )
 }
