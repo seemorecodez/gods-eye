@@ -101,7 +101,7 @@ export function MLPredictionsVisualizer() {
       const locations = LOCATIONS_BY_REGION[region]
       const location = locations[Math.floor(Math.random() * locations.length)]
       
-      const prompt = (window.spark.llmPrompt as any)`You are a geospatial intelligence analyst. Generate a threat analysis for ${location} in the ${region} region.
+      const promptText = `You are a geospatial intelligence analyst. Generate a threat analysis for ${location} in the ${region} region.
 
 Return a JSON object with these fields:
 - keyFactors: array of 3-4 specific threat factors (strings)
@@ -111,7 +111,7 @@ Return a JSON object with these fields:
 
 Make it realistic and specific to the region.`
 
-      const result = await window.spark.llm(prompt, 'gpt-4o-mini', true)
+      const result = await window.spark.llm(promptText, 'gpt-4o-mini', true)
       const data = JSON.parse(result)
 
       const analysis: ThreatAnalysis = {
@@ -166,7 +166,7 @@ Make it realistic and specific to the region.`
       const locations = LOCATIONS_BY_REGION[region]
       const location = locations[Math.floor(Math.random() * locations.length)]
       
-      const prompt = (window.spark.llmPrompt as any)`You are analyzing satellite imagery of ${location} in the ${region} region using YOLOv8 and change detection algorithms.
+      const promptText = `You are analyzing satellite imagery of ${location} in the ${region} region using YOLOv8 and change detection algorithms.
 
 Return a JSON object with these fields:
 - detectedObjects: array of 4-6 detected objects like "Military Vehicle", "Building Complex", etc. (strings)
@@ -177,7 +177,7 @@ Return a JSON object with these fields:
 
 Make it realistic and specific to conflict zones.`
 
-      const result = await window.spark.llm(prompt, 'gpt-4o-mini', true)
+      const result = await window.spark.llm(promptText, 'gpt-4o-mini', true)
       const data = JSON.parse(result)
 
       const analysis: SatelliteAnalysis = {
@@ -230,7 +230,7 @@ Make it realistic and specific to conflict zones.`
       const aiCount = repositories.filter(r => r.category === 'ai').length
       const totalStars = repositories.reduce((sum, r) => sum + r.stars, 0)
       
-      const prompt = (window.spark.llmPrompt as any)`You are generating a strategic intelligence briefing for a geospatial intelligence platform called "God's Eye".
+      const promptText = `You are generating a strategic intelligence briefing for a geospatial intelligence platform called "God's Eye".
 
 The platform has ${repositories.length} components, ${aiCount} AI systems, and ${totalStars} total GitHub stars.
 
@@ -242,7 +242,7 @@ Return a JSON object with these fields:
 
 Make it professional and strategic.`
 
-      const result = await window.spark.llm(prompt, 'gpt-4o-mini', true)
+      const result = await window.spark.llm(promptText, 'gpt-4o-mini', true)
       const data = JSON.parse(result)
 
       const briefing: IntelligenceBriefing = {
