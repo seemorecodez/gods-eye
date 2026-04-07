@@ -52,7 +52,7 @@ export function UnifiedGlobeMap() {
   const cloudsRef = useRef<THREE.Mesh | null>(null)
   const animationFrameRef = useRef<number | null>(null)
   const connectionLinesRef = useRef<THREE.Group | null>(null)
-  const markersRef = useRef<THREE.Group | null>(null)
+  const markersGroupRef = useRef<THREE.Group | null>(null)
   
   const [flights, setFlights] = useState<Flight[]>([])
   const [cameras, setCameras] = useState<CameraFeed[]>([])
@@ -226,6 +226,10 @@ export function UnifiedGlobeMap() {
     globeRef.current = globe
     scene.add(globe)
 
+    const markersGroup = new THREE.Group()
+    markersGroupRef.current = markersGroup
+    globe.add(markersGroup)
+
     const atmosphereGeometry = new THREE.SphereGeometry(103, 128, 128)
     const atmosphereMaterial = new THREE.ShaderMaterial({
       transparent: true,
@@ -253,15 +257,13 @@ export function UnifiedGlobeMap() {
     const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial)
     scene.add(atmosphere)
 
-    addDataPoints(scene)
-
     let mouseX = 0
     let mouseY = 0
     let targetRotationX = 0
     let targetRotationY = 0
 
     const handleMouseMove = (event: MouseEvent) => {
-      if (!containerRef.current || !cameraRef.current) return
+      if (!containerRef.current || !cameraRef.current || !markersGroupRef.current) return
       const rect = containerRef.current.getBoundingClientRect()
       mouseX = ((event.clientX - rect.left) / width) * 2 - 1
       mouseY = -((event.clientY - rect.top) / height) * 2 + 1
@@ -269,11 +271,7 @@ export function UnifiedGlobeMap() {
       const raycaster = new THREE.Raycaster()
       raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), cameraRef.current)
       
-      const points = scene.children.filter(child => 
-        child.userData.type && child.userData.type !== 'globe'
-      )
-      
-      const intersects = raycaster.intersectObjects(points)
+      const intersects = raycaster.intersectObjects(markersGroupRef.current.children, true)
       
       if (intersects.length > 0) {
         const hovered = intersects[0].object
@@ -294,7 +292,7 @@ export function UnifiedGlobeMap() {
     }
 
     const handleClick = (event: MouseEvent) => {
-      if (!containerRef.current || !cameraRef.current) return
+      if (!containerRef.current || !cameraRef.current || !markersGroupRef.current) return
       
       const rect = containerRef.current.getBoundingClientRect()
       const x = ((event.clientX - rect.left) / width) * 2 - 1
@@ -303,11 +301,7 @@ export function UnifiedGlobeMap() {
       const raycaster = new THREE.Raycaster()
       raycaster.setFromCamera(new THREE.Vector2(x, y), cameraRef.current)
       
-      const points = scene.children.filter(child => 
-        child.userData.type && child.userData.type !== 'globe'
-      )
-      
-      const intersects = raycaster.intersectObjects(points)
+      const intersects = raycaster.intersectObjects(markersGroupRef.current.children, true)
       
       if (intersects.length > 0) {
         const selected = intersects[0].object
@@ -373,15 +367,13 @@ export function UnifiedGlobeMap() {
   }, [cameraDistance])
 
   useEffect(() => {
-    if (!sceneRef.current || loading) return
+    if (!markersGroupRef.current || loading) return
     
-    sceneRef.current.children = sceneRef.current.children.filter(child => 
-      child instanceof THREE.Light || 
-      child === globeRef.current ||
-      child.type === 'Mesh' && (child as THREE.Mesh).geometry instanceof THREE.SphereGeometry
-    )
+    while(markersGroupRef.current.children.length > 0) {
+      markersGroupRef.current.remove(markersGroupRef.current.children[0])
+    }
     
-    addDataPoints(sceneRef.current)
+    addDataPoints()
   }, [flights, cameras, satellites, weatherData, threatPredictions, annotations, showFlights, showCameras, showSatellites, showWeather, showThreats, showAnnotations, filteredFlights, filteredCameras, loading, militaryOnly])
 
   function createEarthTexture(): THREE.Texture {
@@ -484,7 +476,17 @@ export function UnifiedGlobeMap() {
     return new THREE.Vector3(x, y, z)
   }
 
-  function addDataPoints(scene: THREE.Scene) {
+  function addDataPoints() {
+    if (!markersGroupRef.current || !sceneRef.current) return
+    
+    const markersGroup = markersGroupRef.current
+    const scene = sceneRef.current
+    
+    if (connectionLinesRef.current) {
+      scene.remove(connectionLinesRef.current)
+      connectionLinesRef.current = null
+    }
+    
     const allPoints: GlobePoint[] = []
     
     if (showFlights && filteredFlights.length > 0) {
@@ -492,10 +494,10 @@ export function UnifiedGlobeMap() {
         const position = latLngToVector3(
           flight.currentPosition.lat,
           flight.currentPosition.lng,
-          102.5
+          2.5
         )
         
-        const geometry = new THREE.ConeGeometry(1.2, 4, 4)
+        const geometry = new THREE.ConeGeometry(0.012, 0.04, 4)
         const material = new THREE.MeshPhongMaterial({ 
           color: flight.isMilitary ? 0xff3333 : 0x33ff33,
           emissive: flight.isMilitary ? 0xcc0000 : 0x00cc00,
@@ -507,7 +509,7 @@ export function UnifiedGlobeMap() {
         marker.lookAt(0, 0, 0)
         marker.rotateX(Math.PI / 2)
         
-        const glowGeometry = new THREE.SphereGeometry(2, 16, 16)
+        const glowGeometry = new THREE.SphereGeometry(0.02, 16, 16)
         const glowMaterial = new THREE.MeshBasicMaterial({
           color: flight.isMilitary ? 0xff0000 : 0x00ff00,
           transparent: true,
@@ -515,7 +517,7 @@ export function UnifiedGlobeMap() {
         })
         const glow = new THREE.Mesh(glowGeometry, glowMaterial)
         glow.position.copy(position)
-        scene.add(glow)
+        markersGroup.add(glow)
         
         const point: GlobePoint = {
           id: flight.id,
@@ -527,15 +529,15 @@ export function UnifiedGlobeMap() {
         marker.userData = { type: 'flight', point }
         allPoints.push(point)
         
-        scene.add(marker)
+        markersGroup.add(marker)
       })
     }
 
     if (showCameras && filteredCameras.length > 0) {
       filteredCameras.forEach(camera => {
-        const position = latLngToVector3(camera.lat, camera.lng, 102)
+        const position = latLngToVector3(camera.lat, camera.lng, 2)
         
-        const geometry = new THREE.SphereGeometry(0.8, 16, 16)
+        const geometry = new THREE.SphereGeometry(0.008, 16, 16)
         const material = new THREE.MeshPhongMaterial({ 
           color: camera.status === 'online' ? 0x00ddff : 0x666666,
           emissive: camera.status === 'online' ? 0x00aacc : 0x333333,
@@ -546,7 +548,7 @@ export function UnifiedGlobeMap() {
         marker.position.copy(position)
         
         if (camera.status === 'online') {
-          const pulseGeometry = new THREE.SphereGeometry(1.5, 16, 16)
+          const pulseGeometry = new THREE.SphereGeometry(0.015, 16, 16)
           const pulseMaterial = new THREE.MeshBasicMaterial({
             color: 0x00ddff,
             transparent: true,
@@ -554,7 +556,7 @@ export function UnifiedGlobeMap() {
           })
           const pulse = new THREE.Mesh(pulseGeometry, pulseMaterial)
           pulse.position.copy(position)
-          scene.add(pulse)
+          markersGroup.add(pulse)
         }
         
         const point: GlobePoint = {
@@ -567,15 +569,16 @@ export function UnifiedGlobeMap() {
         marker.userData = { type: 'camera', point }
         allPoints.push(point)
         
-        scene.add(marker)
+        markersGroup.add(marker)
       })
     }
 
     if (showSatellites && satellites.length > 0) {
       satellites.forEach(sat => {
-        const position = latLngToVector3(sat.lat, sat.lng, 108 + (sat.altitude / 80))
+        const altitudeScale = sat.altitude / 80
+        const position = latLngToVector3(sat.lat, sat.lng, 8 + altitudeScale)
         
-        const geometry = new THREE.OctahedronGeometry(1.8)
+        const geometry = new THREE.OctahedronGeometry(0.018)
         const material = new THREE.MeshPhongMaterial({ 
           color: 0xffdd00,
           emissive: 0xccaa00,
@@ -588,7 +591,7 @@ export function UnifiedGlobeMap() {
         marker.rotation.x = Date.now() * 0.001
         marker.rotation.y = Date.now() * 0.001
         
-        const orbitGeometry = new THREE.RingGeometry(3, 3.5, 32)
+        const orbitGeometry = new THREE.RingGeometry(0.03, 0.035, 32)
         const orbitMaterial = new THREE.MeshBasicMaterial({
           color: 0xffdd00,
           transparent: true,
@@ -598,7 +601,7 @@ export function UnifiedGlobeMap() {
         const orbit = new THREE.Mesh(orbitGeometry, orbitMaterial)
         orbit.position.copy(position)
         orbit.lookAt(0, 0, 0)
-        scene.add(orbit)
+        markersGroup.add(orbit)
         
         const point: GlobePoint = {
           id: sat.id,
@@ -610,19 +613,19 @@ export function UnifiedGlobeMap() {
         marker.userData = { type: 'satellite', point }
         allPoints.push(point)
         
-        scene.add(marker)
+        markersGroup.add(marker)
       })
     }
 
     if (showWeather && weatherData.length > 0) {
       weatherData.forEach(weather => {
-        const position = latLngToVector3(weather.lat, weather.lng, 101.5)
+        const position = latLngToVector3(weather.lat, weather.lng, 1.5)
         
         const tempNormalized = (weather.temperature + 20) / 60
         const color = new THREE.Color()
         color.setHSL(0.65 - tempNormalized * 0.65, 0.9, 0.6)
         
-        const geometry = new THREE.SphereGeometry(2, 12, 12)
+        const geometry = new THREE.SphereGeometry(0.02, 12, 12)
         const material = new THREE.MeshBasicMaterial({ 
           color: color,
           transparent: true,
@@ -640,18 +643,18 @@ export function UnifiedGlobeMap() {
         }
         marker.userData = { type: 'weather', point }
         
-        scene.add(marker)
+        markersGroup.add(marker)
       })
     }
 
     if (showThreats && threatPredictions.length > 0) {
       threatPredictions.forEach(threat => {
-        const position = latLngToVector3(threat.lat, threat.lng, 101.8)
+        const position = latLngToVector3(threat.lat, threat.lng, 1.8)
         
         const color = threat.threatLevel === 'critical' ? 0xff0000 : 
                      threat.threatLevel === 'high' ? 0xff6600 : 0xffaa00
         
-        const geometry = new THREE.RingGeometry(2, 4, 32)
+        const geometry = new THREE.RingGeometry(0.02, 0.04, 32)
         const material = new THREE.MeshBasicMaterial({ 
           color: color,
           transparent: true,
@@ -662,7 +665,7 @@ export function UnifiedGlobeMap() {
         marker.position.copy(position)
         marker.lookAt(0, 0, 0)
         
-        const innerGeometry = new THREE.RingGeometry(0.5, 1.5, 32)
+        const innerGeometry = new THREE.RingGeometry(0.005, 0.015, 32)
         const innerMaterial = new THREE.MeshBasicMaterial({
           color: color,
           transparent: true,
@@ -672,7 +675,7 @@ export function UnifiedGlobeMap() {
         const inner = new THREE.Mesh(innerGeometry, innerMaterial)
         inner.position.copy(position)
         inner.lookAt(0, 0, 0)
-        scene.add(inner)
+        markersGroup.add(inner)
         
         const point: GlobePoint = {
           id: threat.id,
@@ -683,18 +686,18 @@ export function UnifiedGlobeMap() {
         }
         marker.userData = { type: 'threat', point }
         
-        scene.add(marker)
+        markersGroup.add(marker)
       })
     }
 
     if (showAnnotations && annotations && annotations.length > 0) {
       annotations.forEach(annotation => {
-        const position = latLngToVector3(annotation.lat, annotation.lng, 102.2)
+        const position = latLngToVector3(annotation.lat, annotation.lng, 2.2)
         
         const color = annotation.type === 'alert' ? 0xff0000 :
                      annotation.type === 'observation' ? 0x00ff00 : 0x0088ff
         
-        const geometry = new THREE.CylinderGeometry(0.4, 0.4, 4, 8)
+        const geometry = new THREE.CylinderGeometry(0.004, 0.004, 0.04, 8)
         const material = new THREE.MeshPhongMaterial({ 
           color: color,
           emissive: color,
@@ -705,7 +708,7 @@ export function UnifiedGlobeMap() {
         marker.position.copy(position)
         marker.lookAt(0, 0, 0)
         
-        const flagGeometry = new THREE.PlaneGeometry(2.5, 1.5)
+        const flagGeometry = new THREE.PlaneGeometry(0.025, 0.015)
         const flagMaterial = new THREE.MeshBasicMaterial({
           color: color,
           transparent: true,
@@ -713,10 +716,10 @@ export function UnifiedGlobeMap() {
           side: THREE.DoubleSide
         })
         const flag = new THREE.Mesh(flagGeometry, flagMaterial)
-        const flagOffset = latLngToVector3(annotation.lat, annotation.lng, 104)
+        const flagOffset = latLngToVector3(annotation.lat, annotation.lng, 4)
         flag.position.copy(flagOffset)
         flag.lookAt(0, 0, 0)
-        scene.add(flag)
+        markersGroup.add(flag)
         
         const point: GlobePoint = {
           id: annotation.id,
@@ -728,12 +731,13 @@ export function UnifiedGlobeMap() {
         marker.userData = { type: 'annotation', point }
         allPoints.push(point)
         
-        scene.add(marker)
+        markersGroup.add(marker)
       })
     }
     
-    if (showConnectionLines && allPoints.length > 1) {
+    if (showConnectionLines && allPoints.length > 1 && globeRef.current) {
       const connectionGroup = new THREE.Group()
+      connectionLinesRef.current = connectionGroup
       
       for (let i = 0; i < Math.min(allPoints.length, 50); i++) {
         const point1 = allPoints[i]
@@ -747,8 +751,8 @@ export function UnifiedGlobeMap() {
           .slice(0, 2)
         
         nearbyPoints.forEach(point2 => {
-          const pos1 = latLngToVector3(point1.lat, point1.lng, 102)
-          const pos2 = latLngToVector3(point2.lat, point2.lng, 102)
+          const pos1 = latLngToVector3(point1.lat, point1.lng, 2)
+          const pos2 = latLngToVector3(point2.lat, point2.lng, 2)
           
           const curve = new THREE.QuadraticBezierCurve3(
             pos1,
@@ -770,7 +774,7 @@ export function UnifiedGlobeMap() {
         })
       }
       
-      scene.add(connectionGroup)
+      globeRef.current.add(connectionGroup)
     }
   }
 
