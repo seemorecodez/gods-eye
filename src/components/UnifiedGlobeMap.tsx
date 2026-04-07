@@ -1284,21 +1284,6 @@ export function UnifiedGlobeMap() {
                 </Badge>
               )}
             </div>
-            
-            {!loading && (
-                    </div>
-                    <div className="space-y-1.5">
-                  <div className="grid grid-cols-4 gap-6">
-                    <div className="space-y-1.5">
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="text-xs text-muted-foreground font-medium tracking-wide">NOTES</div>
-                      <div className="text-2xl font-bold text-blue-500 tabular-nums">{stats.annotations}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </Card>
       </div>
