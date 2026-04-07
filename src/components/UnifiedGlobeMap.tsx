@@ -155,7 +155,7 @@ export function UnifiedGlobeMap() {
     const height = containerRef.current.clientHeight
 
     const scene = new THREE.Scene()
-    scene.background = new THREE.Color(0x0a0a0f)
+    scene.background = new THREE.Color(0x050a14)
     sceneRef.current = scene
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
@@ -168,51 +168,62 @@ export function UnifiedGlobeMap() {
     rendererRef.current = renderer
     containerRef.current.appendChild(renderer.domElement)
 
-    const ambientLight = new THREE.AmbientLight(0x404040, 2)
+    const ambientLight = new THREE.AmbientLight(0x5588bb, 0.4)
     scene.add(ambientLight)
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5)
-    directionalLight.position.set(5, 3, 5)
-    scene.add(directionalLight)
+    const sunLight = new THREE.DirectionalLight(0xffffee, 2.5)
+    sunLight.position.set(150, 100, 100)
+    scene.add(sunLight)
 
-    const pointLight = new THREE.PointLight(0x4fc3f7, 1, 400)
-    pointLight.position.set(-50, 50, 50)
-    scene.add(pointLight)
+    const fillLight = new THREE.DirectionalLight(0x8899cc, 0.8)
+    fillLight.position.set(-100, -50, -100)
+    scene.add(fillLight)
 
-    const geometry = new THREE.SphereGeometry(100, 64, 64)
+    const accentLight = new THREE.PointLight(0x4fc3f7, 1.5, 500)
+    accentLight.position.set(0, 150, 150)
+    scene.add(accentLight)
+
+    const geometry = new THREE.SphereGeometry(100, 128, 128)
     
     const textureLoader = new THREE.TextureLoader()
     const earthTexture = createEarthTexture()
     
     const material = new THREE.MeshPhongMaterial({
       map: earthTexture,
-      bumpScale: 0.5,
-      specular: new THREE.Color(0x333333),
-      shininess: 10,
-      transparent: true,
-      opacity: 0.95
+      bumpScale: 1.2,
+      specular: new THREE.Color(0x1a4d7a),
+      shininess: 25,
+      transparent: false,
+      opacity: 1.0,
+      emissive: new THREE.Color(0x0a1520),
+      emissiveIntensity: 0.1
     })
 
     const globe = new THREE.Mesh(geometry, material)
     globeRef.current = globe
     scene.add(globe)
 
-    const atmosphereGeometry = new THREE.SphereGeometry(102, 64, 64)
+    const atmosphereGeometry = new THREE.SphereGeometry(103, 128, 128)
     const atmosphereMaterial = new THREE.ShaderMaterial({
       transparent: true,
       side: THREE.BackSide,
       vertexShader: `
         varying vec3 vNormal;
+        varying vec3 vPosition;
         void main() {
           vNormal = normalize(normalMatrix * normal);
+          vPosition = position;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: `
         varying vec3 vNormal;
+        varying vec3 vPosition;
         void main() {
-          float intensity = pow(0.6 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
-          gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
+          float intensity = pow(0.65 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 3.0);
+          vec3 atmosphere = vec3(0.2, 0.5, 0.9) * intensity;
+          float alpha = intensity * 0.8;
+          gl_FragColor = vec4(atmosphere, alpha);
         }
       `
     })
@@ -346,42 +357,88 @@ export function UnifiedGlobeMap() {
 
   function createEarthTexture(): THREE.Texture {
     const canvas = document.createElement('canvas')
-    canvas.width = 2048
-    canvas.height = 1024
+    canvas.width = 4096
+    canvas.height = 2048
     const ctx = canvas.getContext('2d')!
     
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height)
-    gradient.addColorStop(0, '#1a237e')
-    gradient.addColorStop(0.5, '#0d47a1')
-    gradient.addColorStop(1, '#01579b')
-    ctx.fillStyle = gradient
+    const oceanGradient = ctx.createLinearGradient(0, 0, 0, canvas.height)
+    oceanGradient.addColorStop(0, '#0a1929')
+    oceanGradient.addColorStop(0.3, '#0d3a5c')
+    oceanGradient.addColorStop(0.5, '#0f4c75')
+    oceanGradient.addColorStop(0.7, '#0d3a5c')
+    oceanGradient.addColorStop(1, '#0a1929')
+    ctx.fillStyle = oceanGradient
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     
-    ctx.fillStyle = '#1b5e20'
-    for (let i = 0; i < 100; i++) {
-      const x = Math.random() * canvas.width
-      const y = Math.random() * canvas.height
-      const size = Math.random() * 200 + 50
-      ctx.beginPath()
-      ctx.arc(x, y, size, 0, Math.PI * 2)
-      ctx.fill()
-    }
+    const continents = [
+      { x: 0.15, y: 0.35, w: 0.08, h: 0.25 },
+      { x: 0.25, y: 0.25, w: 0.15, h: 0.3 },
+      { x: 0.45, y: 0.15, w: 0.18, h: 0.35 },
+      { x: 0.68, y: 0.25, w: 0.12, h: 0.28 },
+      { x: 0.75, y: 0.45, w: 0.08, h: 0.12 },
+      { x: 0.55, y: 0.65, w: 0.1, h: 0.15 },
+      { x: 0.12, y: 0.62, w: 0.08, h: 0.12 },
+    ]
     
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
-    ctx.lineWidth = 1
+    continents.forEach(continent => {
+      const landGradient = ctx.createRadialGradient(
+        canvas.width * (continent.x + continent.w / 2),
+        canvas.height * (continent.y + continent.h / 2),
+        0,
+        canvas.width * (continent.x + continent.w / 2),
+        canvas.height * (continent.y + continent.h / 2),
+        canvas.width * Math.max(continent.w, continent.h) * 0.8
+      )
+      landGradient.addColorStop(0, '#2d5016')
+      landGradient.addColorStop(0.5, '#1e3a0f')
+      landGradient.addColorStop(1, '#152a0a')
+      ctx.fillStyle = landGradient
+      
+      for (let i = 0; i < 50; i++) {
+        const offsetX = (Math.random() - 0.5) * canvas.width * continent.w * 0.3
+        const offsetY = (Math.random() - 0.5) * canvas.height * continent.h * 0.3
+        const size = Math.random() * canvas.width * continent.w * 0.8 + canvas.width * continent.w * 0.2
+        const x = canvas.width * (continent.x + continent.w / 2) + offsetX
+        const y = canvas.height * (continent.y + continent.h / 2) + offsetY
+        
+        ctx.beginPath()
+        ctx.ellipse(x, y, size, size * 0.7, Math.random() * Math.PI, 0, Math.PI * 2)
+        ctx.fill()
+      }
+    })
+    
+    ctx.strokeStyle = 'rgba(79, 195, 247, 0.15)'
+    ctx.lineWidth = 2
     for (let lat = -90; lat <= 90; lat += 15) {
       const y = ((90 - lat) / 180) * canvas.height
+      ctx.globalAlpha = lat === 0 ? 0.3 : 0.15
       ctx.beginPath()
       ctx.moveTo(0, y)
       ctx.lineTo(canvas.width, y)
       ctx.stroke()
     }
+    ctx.globalAlpha = 1
+    
+    ctx.strokeStyle = 'rgba(79, 195, 247, 0.15)'
+    ctx.lineWidth = 2
     for (let lng = -180; lng <= 180; lng += 15) {
       const x = ((lng + 180) / 360) * canvas.width
+      ctx.globalAlpha = lng === 0 ? 0.3 : 0.15
       ctx.beginPath()
       ctx.moveTo(x, 0)
       ctx.lineTo(x, canvas.height)
       ctx.stroke()
+    }
+    ctx.globalAlpha = 1
+    
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
+    for (let i = 0; i < 500; i++) {
+      const x = Math.random() * canvas.width
+      const y = Math.random() * canvas.height
+      const size = Math.random() * 3 + 1
+      ctx.beginPath()
+      ctx.arc(x, y, size, 0, Math.PI * 2)
+      ctx.fill()
     }
     
     return new THREE.CanvasTexture(canvas)
@@ -404,19 +461,30 @@ export function UnifiedGlobeMap() {
         const position = latLngToVector3(
           flight.currentPosition.lat,
           flight.currentPosition.lng,
-          102
+          102.5
         )
         
-        const geometry = new THREE.ConeGeometry(0.8, 3, 4)
+        const geometry = new THREE.ConeGeometry(1.2, 4, 4)
         const material = new THREE.MeshPhongMaterial({ 
-          color: flight.isMilitary ? 0xff0000 : 0x00ff00,
-          emissive: flight.isMilitary ? 0x880000 : 0x008800,
-          emissiveIntensity: 0.5
+          color: flight.isMilitary ? 0xff3333 : 0x33ff33,
+          emissive: flight.isMilitary ? 0xcc0000 : 0x00cc00,
+          emissiveIntensity: 0.8,
+          shininess: 100
         })
         const marker = new THREE.Mesh(geometry, material)
         marker.position.copy(position)
         marker.lookAt(0, 0, 0)
         marker.rotateX(Math.PI / 2)
+        
+        const glowGeometry = new THREE.SphereGeometry(2, 16, 16)
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: flight.isMilitary ? 0xff0000 : 0x00ff00,
+          transparent: true,
+          opacity: 0.2
+        })
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial)
+        glow.position.copy(position)
+        scene.add(glow)
         
         const point: GlobePoint = {
           id: flight.id,
@@ -433,16 +501,29 @@ export function UnifiedGlobeMap() {
 
     if (showCameras && filteredCameras.length > 0) {
       filteredCameras.forEach(camera => {
-        const position = latLngToVector3(camera.lat, camera.lng, 101.5)
+        const position = latLngToVector3(camera.lat, camera.lng, 102)
         
-        const geometry = new THREE.SphereGeometry(0.6, 8, 8)
+        const geometry = new THREE.SphereGeometry(0.8, 16, 16)
         const material = new THREE.MeshPhongMaterial({ 
-          color: camera.status === 'online' ? 0x00bfff : 0x666666,
-          emissive: camera.status === 'online' ? 0x0088cc : 0x333333,
-          emissiveIntensity: 0.6
+          color: camera.status === 'online' ? 0x00ddff : 0x666666,
+          emissive: camera.status === 'online' ? 0x00aacc : 0x333333,
+          emissiveIntensity: camera.status === 'online' ? 1.0 : 0.3,
+          shininess: 100
         })
         const marker = new THREE.Mesh(geometry, material)
         marker.position.copy(position)
+        
+        if (camera.status === 'online') {
+          const pulseGeometry = new THREE.SphereGeometry(1.5, 16, 16)
+          const pulseMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ddff,
+            transparent: true,
+            opacity: 0.15
+          })
+          const pulse = new THREE.Mesh(pulseGeometry, pulseMaterial)
+          pulse.position.copy(position)
+          scene.add(pulse)
+        }
         
         const point: GlobePoint = {
           id: camera.id,
@@ -459,17 +540,32 @@ export function UnifiedGlobeMap() {
 
     if (showSatellites && satellites.length > 0) {
       satellites.forEach(sat => {
-        const position = latLngToVector3(sat.lat, sat.lng, 105 + (sat.altitude / 100))
+        const position = latLngToVector3(sat.lat, sat.lng, 108 + (sat.altitude / 80))
         
-        const geometry = new THREE.OctahedronGeometry(1.2)
+        const geometry = new THREE.OctahedronGeometry(1.8)
         const material = new THREE.MeshPhongMaterial({ 
-          color: 0xffff00,
-          emissive: 0xaaaa00,
-          emissiveIntensity: 0.8,
-          wireframe: true
+          color: 0xffdd00,
+          emissive: 0xccaa00,
+          emissiveIntensity: 1.2,
+          wireframe: true,
+          shininess: 100
         })
         const marker = new THREE.Mesh(geometry, material)
         marker.position.copy(position)
+        marker.rotation.x = Date.now() * 0.001
+        marker.rotation.y = Date.now() * 0.001
+        
+        const orbitGeometry = new THREE.RingGeometry(3, 3.5, 32)
+        const orbitMaterial = new THREE.MeshBasicMaterial({
+          color: 0xffdd00,
+          transparent: true,
+          opacity: 0.15,
+          side: THREE.DoubleSide
+        })
+        const orbit = new THREE.Mesh(orbitGeometry, orbitMaterial)
+        orbit.position.copy(position)
+        orbit.lookAt(0, 0, 0)
+        scene.add(orbit)
         
         const point: GlobePoint = {
           id: sat.id,
@@ -486,17 +582,17 @@ export function UnifiedGlobeMap() {
 
     if (showWeather && weatherData.length > 0) {
       weatherData.forEach(weather => {
-        const position = latLngToVector3(weather.lat, weather.lng, 101)
+        const position = latLngToVector3(weather.lat, weather.lng, 101.5)
         
         const tempNormalized = (weather.temperature + 20) / 60
         const color = new THREE.Color()
-        color.setHSL(0.6 - tempNormalized * 0.6, 0.8, 0.5)
+        color.setHSL(0.65 - tempNormalized * 0.65, 0.9, 0.6)
         
-        const geometry = new THREE.SphereGeometry(1.5, 6, 6)
+        const geometry = new THREE.SphereGeometry(2, 12, 12)
         const material = new THREE.MeshBasicMaterial({ 
           color: color,
           transparent: true,
-          opacity: 0.6
+          opacity: 0.5
         })
         const marker = new THREE.Mesh(geometry, material)
         marker.position.copy(position)
@@ -516,21 +612,33 @@ export function UnifiedGlobeMap() {
 
     if (showThreats && threatPredictions.length > 0) {
       threatPredictions.forEach(threat => {
-        const position = latLngToVector3(threat.lat, threat.lng, 101.2)
+        const position = latLngToVector3(threat.lat, threat.lng, 101.8)
         
         const color = threat.threatLevel === 'critical' ? 0xff0000 : 
                      threat.threatLevel === 'high' ? 0xff6600 : 0xffaa00
         
-        const geometry = new THREE.RingGeometry(1, 2.5, 6)
+        const geometry = new THREE.RingGeometry(2, 4, 32)
         const material = new THREE.MeshBasicMaterial({ 
           color: color,
           transparent: true,
-          opacity: 0.7,
+          opacity: 0.6,
           side: THREE.DoubleSide
         })
         const marker = new THREE.Mesh(geometry, material)
         marker.position.copy(position)
         marker.lookAt(0, 0, 0)
+        
+        const innerGeometry = new THREE.RingGeometry(0.5, 1.5, 32)
+        const innerMaterial = new THREE.MeshBasicMaterial({
+          color: color,
+          transparent: true,
+          opacity: 0.8,
+          side: THREE.DoubleSide
+        })
+        const inner = new THREE.Mesh(innerGeometry, innerMaterial)
+        inner.position.copy(position)
+        inner.lookAt(0, 0, 0)
+        scene.add(inner)
         
         const point: GlobePoint = {
           id: threat.id,
@@ -547,20 +655,34 @@ export function UnifiedGlobeMap() {
 
     if (showAnnotations && annotations && annotations.length > 0) {
       annotations.forEach(annotation => {
-        const position = latLngToVector3(annotation.lat, annotation.lng, 101.3)
+        const position = latLngToVector3(annotation.lat, annotation.lng, 102.2)
         
         const color = annotation.type === 'alert' ? 0xff0000 :
                      annotation.type === 'observation' ? 0x00ff00 : 0x0088ff
         
-        const geometry = new THREE.CylinderGeometry(0.3, 0.3, 3, 6)
+        const geometry = new THREE.CylinderGeometry(0.4, 0.4, 4, 8)
         const material = new THREE.MeshPhongMaterial({ 
           color: color,
           emissive: color,
-          emissiveIntensity: 0.5
+          emissiveIntensity: 0.8,
+          shininess: 100
         })
         const marker = new THREE.Mesh(geometry, material)
         marker.position.copy(position)
         marker.lookAt(0, 0, 0)
+        
+        const flagGeometry = new THREE.PlaneGeometry(2.5, 1.5)
+        const flagMaterial = new THREE.MeshBasicMaterial({
+          color: color,
+          transparent: true,
+          opacity: 0.7,
+          side: THREE.DoubleSide
+        })
+        const flag = new THREE.Mesh(flagGeometry, flagMaterial)
+        const flagOffset = latLngToVector3(annotation.lat, annotation.lng, 104)
+        flag.position.copy(flagOffset)
+        flag.lookAt(0, 0, 0)
+        scene.add(flag)
         
         const point: GlobePoint = {
           id: annotation.id,
@@ -667,16 +789,18 @@ export function UnifiedGlobeMap() {
 
   return (
     <div className="w-full space-y-4">
-      <Card className="border-accent/20">
+      <Card className="border-accent/30 bg-gradient-to-r from-card/90 via-card/80 to-card/90 backdrop-blur-sm shadow-xl">
         <CardHeader className="pb-4">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-accent/10 border border-accent/20">
-                <Globe size={32} className="text-accent" weight="fill" />
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-xl bg-gradient-to-br from-accent/20 to-accent/10 border-2 border-accent/30 shadow-lg">
+                <Globe size={36} className="text-accent" weight="fill" />
               </div>
-              <div className="space-y-1">
-                <CardTitle className="text-2xl tracking-tight">Unified Intelligence Globe</CardTitle>
-                <CardDescription className="text-sm">
+              <div className="space-y-1.5">
+                <CardTitle className="text-3xl tracking-tight font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+                  Unified Intelligence Globe
+                </CardTitle>
+                <CardDescription className="text-sm leading-relaxed">
                   Real-time 3D visualization with live flight tracking, camera feeds, satellites, and intelligence layers
                 </CardDescription>
               </div>
@@ -688,32 +812,32 @@ export function UnifiedGlobeMap() {
                 size="sm"
                 onClick={handleRefreshData}
                 disabled={loading}
-                className="gap-2"
+                className="gap-2 border-accent/30 hover:bg-accent/10 hover:border-accent/50 transition-all"
               >
-                <ArrowsClockwise size={16} className={loading ? 'animate-spin' : ''} />
-                <span className="hidden sm:inline">Refresh Data</span>
+                <ArrowsClockwise size={18} className={loading ? 'animate-spin' : ''} />
+                <span className="hidden sm:inline font-medium">Refresh Data</span>
               </Button>
               
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setExportDialogOpen(true)}
-                className="gap-2"
+                className="gap-2 border-accent/30 hover:bg-accent/10 hover:border-accent/50 transition-all"
               >
-                <FilePdf size={16} />
-                <span className="hidden sm:inline">Export PDF</span>
+                <FilePdf size={18} />
+                <span className="hidden sm:inline font-medium">Export PDF</span>
               </Button>
             </div>
           </div>
           
           {loading && (
-            <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-border">
-              <div className="flex items-center gap-3 mb-2">
-                <Spinner size={18} className="animate-spin text-accent" />
-                <span className="text-sm font-medium text-foreground">Loading intelligence data...</span>
-                <span className="text-sm text-muted-foreground ml-auto">{loadingProgress}%</span>
+            <div className="mt-4 p-4 bg-gradient-to-r from-accent/10 via-accent/5 to-transparent rounded-xl border border-accent/20 shadow-inner">
+              <div className="flex items-center gap-3 mb-3">
+                <Spinner size={20} className="animate-spin text-accent" />
+                <span className="text-sm font-semibold text-foreground">Loading intelligence data...</span>
+                <span className="text-sm font-bold text-accent ml-auto tabular-nums">{loadingProgress}%</span>
               </div>
-              <Progress value={loadingProgress} className="h-1.5" />
+              <Progress value={loadingProgress} className="h-2" />
             </div>
           )}
         </CardHeader>
@@ -721,19 +845,19 @@ export function UnifiedGlobeMap() {
       
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
         <div className="xl:col-span-3 space-y-4">
-          <Card className="border-accent/20">
-            <CardHeader className="pb-3 border-b border-border">
-              <CardTitle className="text-base flex items-center gap-2 font-semibold">
-                <div className="p-1 rounded bg-accent/10">
-                  <Gear size={16} className="text-accent" weight="fill" />
+          <Card className="border-accent/30 bg-card/80 backdrop-blur-sm shadow-lg">
+            <CardHeader className="pb-3 border-b border-accent/20">
+              <CardTitle className="text-base flex items-center gap-2.5 font-bold tracking-tight">
+                <div className="p-1.5 rounded-lg bg-accent/20 border border-accent/30">
+                  <Gear size={18} className="text-accent" weight="fill" />
                 </div>
                 View Controls
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4 space-y-3">
               <div className="space-y-3">
-                <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
-                  <Label htmlFor="real-data" className="text-xs font-medium flex-1 cursor-pointer">
+                <div className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-accent/10 transition-colors border border-transparent hover:border-accent/20">
+                  <Label htmlFor="real-data" className="text-sm font-medium flex-1 cursor-pointer">
                     Use Real Data
                   </Label>
                   <Switch
@@ -743,8 +867,8 @@ export function UnifiedGlobeMap() {
                   />
                 </div>
                 
-                <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
-                  <Label htmlFor="auto-rotate" className="text-xs font-medium flex-1 cursor-pointer">
+                <div className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-accent/10 transition-colors border border-transparent hover:border-accent/20">
+                  <Label htmlFor="auto-rotate" className="text-sm font-medium flex-1 cursor-pointer">
                     Auto Rotate Globe
                   </Label>
                   <Switch
@@ -757,11 +881,11 @@ export function UnifiedGlobeMap() {
             </CardContent>
           </Card>
           
-          <Card className="border-accent/20">
-            <CardHeader className="pb-3 border-b border-border">
-              <CardTitle className="text-base flex items-center gap-2 font-semibold">
-                <div className="p-1 rounded bg-accent/10">
-                  <Eye size={16} className="text-accent" weight="fill" />
+          <Card className="border-accent/30 bg-card/80 backdrop-blur-sm shadow-lg">
+            <CardHeader className="pb-3 border-b border-accent/20">
+              <CardTitle className="text-base flex items-center gap-2.5 font-bold tracking-tight">
+                <div className="p-1.5 rounded-lg bg-accent/20 border border-accent/30">
+                  <Eye size={18} className="text-accent" weight="fill" />
                 </div>
                 Data Layers
               </CardTitle>
@@ -905,131 +1029,141 @@ export function UnifiedGlobeMap() {
             </CardContent>
           </Card>
           
-          <Card className="border-accent/20">
-            <CardHeader className="pb-3 border-b border-border">
-              <CardTitle className="text-base flex items-center gap-2 font-semibold">
-                <div className="p-1 rounded bg-accent/10">
-                  <ChartBar size={16} className="text-accent" weight="fill" />
+          <Card className="border-accent/30 bg-card/80 backdrop-blur-sm shadow-lg">
+            <CardHeader className="pb-3 border-b border-accent/20">
+              <CardTitle className="text-base flex items-center gap-2.5 font-bold tracking-tight">
+                <div className="p-1.5 rounded-lg bg-accent/20 border border-accent/30">
+                  <ChartBar size={18} className="text-accent" weight="fill" />
                 </div>
                 Statistics
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4">
               <div className="space-y-3 text-xs">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2 rounded-lg bg-muted/50 border border-border">
-                    <div className="text-muted-foreground mb-1">Total Flights</div>
-                    <div className="text-lg font-bold text-foreground">{stats.totalFlights}</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50 shadow-sm">
+                    <div className="text-muted-foreground mb-1.5 text-xs font-medium">Total Flights</div>
+                    <div className="text-2xl font-bold text-foreground tabular-nums">{stats.totalFlights}</div>
                   </div>
-                  <div className="p-2 rounded-lg bg-muted/50 border border-border">
-                    <div className="text-muted-foreground mb-1">Military</div>
-                    <div className="text-lg font-bold text-red-500">{stats.militaryFlights}</div>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2 rounded-lg bg-muted/50 border border-border">
-                    <div className="text-muted-foreground mb-1">Cameras</div>
-                    <div className="text-lg font-bold text-cyan-500">{stats.activeCameras}/{stats.totalCameras}</div>
-                  </div>
-                  <div className="p-2 rounded-lg bg-muted/50 border border-border">
-                    <div className="text-muted-foreground mb-1">Satellites</div>
-                    <div className="text-lg font-bold text-yellow-500">{stats.satellites}</div>
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-red-500/10 to-red-500/5 border border-red-500/20 shadow-sm">
+                    <div className="text-muted-foreground mb-1.5 text-xs font-medium">Military</div>
+                    <div className="text-2xl font-bold text-red-500 tabular-nums">{stats.militaryFlights}</div>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2 rounded-lg bg-muted/50 border border-border">
-                    <div className="text-muted-foreground mb-1">Threats</div>
-                    <div className="text-lg font-bold text-orange-500">{stats.threats}</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 border border-cyan-500/20 shadow-sm">
+                    <div className="text-muted-foreground mb-1.5 text-xs font-medium">Cameras</div>
+                    <div className="text-2xl font-bold text-cyan-500 tabular-nums">{stats.activeCameras}/{stats.totalCameras}</div>
                   </div>
-                  <div className="p-2 rounded-lg bg-muted/50 border border-border">
-                    <div className="text-muted-foreground mb-1">Annotations</div>
-                    <div className="text-lg font-bold text-blue-500">{stats.annotations}</div>
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-yellow-500/10 to-yellow-500/5 border border-yellow-500/20 shadow-sm">
+                    <div className="text-muted-foreground mb-1.5 text-xs font-medium">Satellites</div>
+                    <div className="text-2xl font-bold text-yellow-500 tabular-nums">{stats.satellites}</div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-orange-500/10 to-orange-500/5 border border-orange-500/20 shadow-sm">
+                    <div className="text-muted-foreground mb-1.5 text-xs font-medium">Threats</div>
+                    <div className="text-2xl font-bold text-orange-500 tabular-nums">{stats.threats}</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20 shadow-sm">
+                    <div className="text-muted-foreground mb-1.5 text-xs font-medium">Annotations</div>
+                    <div className="text-2xl font-bold text-blue-500 tabular-nums">{stats.annotations}</div>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="border-accent/20">
-            <CardHeader className="pb-3 border-b border-border">
-              <CardTitle className="text-base flex items-center gap-2 font-semibold">
-                <div className="p-1 rounded bg-accent/10">
-                  <Target size={16} className="text-accent" weight="fill" />
+          <Card className="border-accent/30 bg-card/80 backdrop-blur-sm shadow-lg">
+            <CardHeader className="pb-3 border-b border-accent/20">
+              <CardTitle className="text-base flex items-center gap-2.5 font-bold tracking-tight">
+                <div className="p-1.5 rounded-lg bg-accent/20 border border-accent/30">
+                  <Target size={18} className="text-accent" weight="fill" />
                 </div>
                 Legend
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4">
               <div className="space-y-2.5 text-xs">
-                <div className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
-                  <div className="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-500/30"></div>
-                  <span className="font-medium">Civilian Flight</span>
+                <div className="flex items-center gap-3 p-2.5 rounded-lg bg-gradient-to-r from-green-500/10 to-transparent border border-green-500/20">
+                  <div className="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-500/50"></div>
+                  <span className="font-medium text-foreground">Civilian Flight</span>
                 </div>
-                <div className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
-                  <div className="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-500/30"></div>
-                  <span className="font-medium">Military Flight</span>
+                <div className="flex items-center gap-3 p-2.5 rounded-lg bg-gradient-to-r from-red-500/10 to-transparent border border-red-500/20">
+                  <div className="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-500/50"></div>
+                  <span className="font-medium text-foreground">Military Flight</span>
                 </div>
-                <div className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
-                  <div className="w-3 h-3 rounded-full bg-cyan-500 shadow-lg shadow-cyan-500/30"></div>
-                  <span className="font-medium">Online Camera</span>
+                <div className="flex items-center gap-3 p-2.5 rounded-lg bg-gradient-to-r from-cyan-500/10 to-transparent border border-cyan-500/20">
+                  <div className="w-3 h-3 rounded-full bg-cyan-500 shadow-lg shadow-cyan-500/50"></div>
+                  <span className="font-medium text-foreground">Online Camera</span>
                 </div>
-                <div className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-lg shadow-yellow-500/30"></div>
-                  <span className="font-medium">Satellite</span>
+                <div className="flex items-center gap-3 p-2.5 rounded-lg bg-gradient-to-r from-yellow-500/10 to-transparent border border-yellow-500/20">
+                  <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-lg shadow-yellow-500/50"></div>
+                  <span className="font-medium text-foreground">Satellite</span>
                 </div>
-                <div className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
-                  <div className="w-3 h-3 rounded-full bg-orange-500 shadow-lg shadow-orange-500/30"></div>
-                  <span className="font-medium">Threat Zone</span>
+                <div className="flex items-center gap-3 p-2.5 rounded-lg bg-gradient-to-r from-orange-500/10 to-transparent border border-orange-500/20">
+                  <div className="w-3 h-3 rounded-full bg-orange-500 shadow-lg shadow-orange-500/50"></div>
+                  <span className="font-medium text-foreground">Threat Zone</span>
                 </div>
-                <div className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
-                  <div className="w-3 h-3 rounded-full bg-blue-500 shadow-lg shadow-blue-500/30"></div>
-                  <span className="font-medium">Annotation</span>
+                <div className="flex items-center gap-3 p-2.5 rounded-lg bg-gradient-to-r from-blue-500/10 to-transparent border border-blue-500/20">
+                  <div className="w-3 h-3 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50"></div>
+                  <span className="font-medium text-foreground">Annotation</span>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
         
-        <Card className="xl:col-span-9 border-accent/20 overflow-hidden">
+        <Card className="xl:col-span-9 border-accent/20 overflow-hidden bg-gradient-to-br from-background via-card to-background">
           <div 
             ref={containerRef}
-            className="w-full h-[900px] bg-gradient-to-br from-background via-background to-accent/5 relative"
-            style={{ cursor: autoRotate ? 'default' : 'grab' }}
+            className="w-full h-[900px] relative overflow-hidden"
+            style={{ 
+              cursor: autoRotate ? 'default' : 'grab',
+              background: 'radial-gradient(ellipse at center, rgba(15, 30, 50, 1) 0%, rgba(5, 10, 20, 1) 100%)'
+            }}
           >
             {loading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-background/95 backdrop-blur-sm z-10">
-                <div className="text-center space-y-4">
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-background/98 via-card/95 to-background/98 backdrop-blur-xl z-10">
+                <div className="text-center space-y-6 max-w-md px-6">
                   <div className="relative">
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-24 h-24 rounded-full bg-accent/20 animate-ping"></div>
+                      <div className="w-32 h-32 rounded-full bg-accent/10 animate-ping"></div>
                     </div>
-                    <Spinner size={56} className="relative mx-auto text-accent animate-spin" weight="bold" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-28 h-28 rounded-full border-4 border-accent/30 border-t-accent animate-spin"></div>
+                    </div>
+                    <Globe size={72} className="relative mx-auto text-accent animate-pulse" weight="fill" />
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-lg font-semibold text-foreground">Initializing Globe</p>
-                    <p className="text-sm text-muted-foreground">Loading intelligence data from live sources...</p>
+                  <div className="space-y-2">
+                    <p className="text-xl font-bold text-foreground tracking-tight">Initializing Globe</p>
+                    <p className="text-sm text-muted-foreground">Loading real-time intelligence data from live sources...</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Progress value={loadingProgress} className="h-2" />
+                    <p className="text-xs text-muted-foreground tabular-nums">{loadingProgress}% Complete</p>
                   </div>
                 </div>
               </div>
             )}
             
-            <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+            <div className="absolute top-4 left-4 z-10 flex flex-col gap-3">
               <Badge 
                 variant="default" 
-                className="bg-background/90 backdrop-blur-md border border-accent/30 shadow-lg px-3 py-1.5"
+                className="bg-card/95 backdrop-blur-xl border-2 border-accent/40 shadow-2xl px-4 py-2 text-sm"
               >
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${useRealData ? 'bg-green-500' : 'bg-yellow-500'} animate-pulse`}></div>
-                  <span className="font-medium">{useRealData ? 'Live Data' : 'Simulated Data'}</span>
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-2.5 h-2.5 rounded-full ${useRealData ? 'bg-green-500' : 'bg-yellow-500'} animate-pulse shadow-lg ${useRealData ? 'shadow-green-500/50' : 'shadow-yellow-500/50'}`}></div>
+                  <span className="font-semibold tracking-wide">{useRealData ? 'LIVE DATA' : 'SIMULATED DATA'}</span>
                 </div>
               </Badge>
               
               {!loading && (
                 <Badge 
                   variant="outline" 
-                  className="bg-background/90 backdrop-blur-md border-border shadow-lg text-xs px-2 py-1"
+                  className="bg-card/95 backdrop-blur-xl border-2 border-border shadow-xl text-xs px-3 py-1.5 font-medium"
                 >
                   {autoRotate ? '🔄 Auto Rotating' : '👆 Drag to Rotate'}
                 </Badge>
@@ -1038,31 +1172,31 @@ export function UnifiedGlobeMap() {
             
             {!loading && (
               <div className="absolute bottom-4 left-4 right-4 z-10">
-                <div className="bg-background/90 backdrop-blur-md border border-accent/30 rounded-lg shadow-2xl p-3">
-                  <div className="grid grid-cols-3 md:grid-cols-6 gap-3 text-center text-xs">
-                    <div className="space-y-1">
-                      <div className="text-muted-foreground">Flights</div>
-                      <div className="text-lg font-bold text-foreground">{stats.totalFlights}</div>
+                <div className="bg-card/95 backdrop-blur-xl border-2 border-accent/40 rounded-xl shadow-2xl p-4">
+                  <div className="grid grid-cols-3 md:grid-cols-6 gap-4 text-center">
+                    <div className="space-y-1.5">
+                      <div className="text-xs text-muted-foreground font-medium tracking-wide">FLIGHTS</div>
+                      <div className="text-2xl font-bold text-foreground tabular-nums">{stats.totalFlights}</div>
                     </div>
-                    <div className="space-y-1">
-                      <div className="text-muted-foreground">Military</div>
-                      <div className="text-lg font-bold text-red-500">{stats.militaryFlights}</div>
+                    <div className="space-y-1.5">
+                      <div className="text-xs text-muted-foreground font-medium tracking-wide">MILITARY</div>
+                      <div className="text-2xl font-bold text-red-500 tabular-nums">{stats.militaryFlights}</div>
                     </div>
-                    <div className="space-y-1">
-                      <div className="text-muted-foreground">Cameras</div>
-                      <div className="text-lg font-bold text-cyan-500">{stats.activeCameras}</div>
+                    <div className="space-y-1.5">
+                      <div className="text-xs text-muted-foreground font-medium tracking-wide">CAMERAS</div>
+                      <div className="text-2xl font-bold text-cyan-500 tabular-nums">{stats.activeCameras}</div>
                     </div>
-                    <div className="space-y-1">
-                      <div className="text-muted-foreground">Satellites</div>
-                      <div className="text-lg font-bold text-yellow-500">{stats.satellites}</div>
+                    <div className="space-y-1.5">
+                      <div className="text-xs text-muted-foreground font-medium tracking-wide">SATELLITES</div>
+                      <div className="text-2xl font-bold text-yellow-500 tabular-nums">{stats.satellites}</div>
                     </div>
-                    <div className="space-y-1">
-                      <div className="text-muted-foreground">Threats</div>
-                      <div className="text-lg font-bold text-orange-500">{stats.threats}</div>
+                    <div className="space-y-1.5">
+                      <div className="text-xs text-muted-foreground font-medium tracking-wide">THREATS</div>
+                      <div className="text-2xl font-bold text-orange-500 tabular-nums">{stats.threats}</div>
                     </div>
-                    <div className="space-y-1">
-                      <div className="text-muted-foreground">Notes</div>
-                      <div className="text-lg font-bold text-blue-500">{stats.annotations}</div>
+                    <div className="space-y-1.5">
+                      <div className="text-xs text-muted-foreground font-medium tracking-wide">NOTES</div>
+                      <div className="text-2xl font-bold text-blue-500 tabular-nums">{stats.annotations}</div>
                     </div>
                   </div>
                 </div>
