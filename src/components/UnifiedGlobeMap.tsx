@@ -20,7 +20,7 @@ import { fetchSatellitePasses, generateSatelliteImageryFeeds, SatellitePass } fr
 import { generateWeatherGrid } from '@/lib/weather-api'
 import { generateThreatPredictions } from '@/lib/threat-analysis'
 import { generatePDFReport } from '@/lib/pdf-export'
-import { Globe, Airplane, Video, CloudRain, Warning, FilePdf, Spinner, MapPin, ChatCircle, Planet, Eye, Target, ArrowsClockwise, X, Funnel, ShieldCheck } from '@phosphor-icons/react'
+import { Globe, Airplane, Video, CloudRain, Warning, FilePdf, Spinner, MapPin, ChatCircle, Planet, Eye, Target, ArrowsClockwise, X, Funnel, ShieldCheck, Gear, ChartBar } from '@phosphor-icons/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import * as THREE from 'three'
@@ -666,300 +666,411 @@ export function UnifiedGlobeMap() {
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-3">
-            <Globe size={32} className="text-accent" weight="fill" />
-            <div>
-              <CardTitle className="text-2xl">Unified Intelligence Globe</CardTitle>
-              <CardDescription>
-                Interactive 3D visualization with live flight tracking, cameras, and intelligence layers
-              </CardDescription>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefreshData}
-              disabled={loading}
-            >
-              <ArrowsClockwise size={16} className={loading ? 'animate-spin' : ''} />
-              Refresh
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setExportDialogOpen(true)}
-            >
-              <FilePdf size={16} />
-              Export PDF
-            </Button>
-            
-            <div className="flex items-center gap-2">
-              <Label htmlFor="real-data" className="text-xs">Real Data</Label>
-              <Switch
-                id="real-data"
-                checked={useRealData}
-                onCheckedChange={setUseRealData}
-              />
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Label htmlFor="auto-rotate" className="text-xs">Auto Rotate</Label>
-              <Switch
-                id="auto-rotate"
-                checked={autoRotate}
-                onCheckedChange={setAutoRotate}
-              />
-            </div>
-          </div>
-        </div>
-        
-        {loading && (
-          <div className="mt-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Spinner size={16} className="animate-spin text-accent" />
-              <span className="text-sm text-muted-foreground">Loading data... {loadingProgress}%</span>
-            </div>
-            <Progress value={loadingProgress} className="h-2" />
-          </div>
-        )}
-      </CardHeader>
-      
-      <CardContent>
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          <div className="lg:col-span-1 space-y-4">
-            <Card className="bg-card/50">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Eye size={16} />
-                  Layer Controls
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="show-flights" className="text-xs flex items-center gap-2">
-                    <Airplane size={14} />
-                    Flights ({stats.totalFlights})
-                  </Label>
-                  <Switch
-                    id="show-flights"
-                    checked={showFlights}
-                    onCheckedChange={setShowFlights}
-                  />
-                </div>
-                
-                {showFlights && (
-                  <div className="ml-6 flex items-center justify-between">
-                    <Label htmlFor="military-only" className="text-xs">
-                      Military Only ({stats.militaryFlights})
-                    </Label>
-                    <Switch
-                      id="military-only"
-                      checked={militaryOnly}
-                      onCheckedChange={setMilitaryOnly}
-                    />
-                  </div>
-                )}
-                
-                <Separator />
-                
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="show-cameras" className="text-xs flex items-center gap-2">
-                    <Video size={14} />
-                    Cameras ({stats.activeCameras}/{stats.totalCameras})
-                  </Label>
-                  <Switch
-                    id="show-cameras"
-                    checked={showCameras}
-                    onCheckedChange={setShowCameras}
-                  />
-                </div>
-                
-                {showCameras && (
-                  <div className="ml-6 space-y-2">
-                    <Select value={filterType} onValueChange={(val) => setFilterType(val as any)}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Filter by type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Types</SelectItem>
-                        <SelectItem value="webcam">Webcams</SelectItem>
-                        <SelectItem value="satellite">Satellites</SelectItem>
-                        <SelectItem value="ground">Ground</SelectItem>
-                        <SelectItem value="aerial">Aerial</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    
-                    <Select value={filterProvider} onValueChange={setFilterProvider}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Filter by provider" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Providers</SelectItem>
-                        {uniqueProviders.map(provider => (
-                          <SelectItem key={provider} value={provider}>{provider}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                
-                <Separator />
-                
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="show-satellites" className="text-xs flex items-center gap-2">
-                    <Planet size={14} />
-                    Satellites ({stats.satellites})
-                  </Label>
-                  <Switch
-                    id="show-satellites"
-                    checked={showSatellites}
-                    onCheckedChange={setShowSatellites}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="show-weather" className="text-xs flex items-center gap-2">
-                    <CloudRain size={14} />
-                    Weather
-                  </Label>
-                  <Switch
-                    id="show-weather"
-                    checked={showWeather}
-                    onCheckedChange={setShowWeather}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="show-threats" className="text-xs flex items-center gap-2">
-                    <Warning size={14} />
-                    Threats ({stats.threats})
-                  </Label>
-                  <Switch
-                    id="show-threats"
-                    checked={showThreats}
-                    onCheckedChange={setShowThreats}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="show-annotations" className="text-xs flex items-center gap-2">
-                    <MapPin size={14} />
-                    Annotations ({stats.annotations})
-                  </Label>
-                  <Switch
-                    id="show-annotations"
-                    checked={showAnnotations}
-                    onCheckedChange={setShowAnnotations}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-card/50">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Statistics</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Flights:</span>
-                  <Badge variant="secondary">{stats.totalFlights}</Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Military:</span>
-                  <Badge variant="destructive">{stats.militaryFlights}</Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Civilian:</span>
-                  <Badge variant="secondary">{stats.civilianFlights}</Badge>
-                </div>
-                <Separator />
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Online Cameras:</span>
-                  <Badge variant="default">{stats.activeCameras}</Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Cameras:</span>
-                  <Badge variant="secondary">{stats.totalCameras}</Badge>
-                </div>
-                <Separator />
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Satellites:</span>
-                  <Badge variant="secondary">{stats.satellites}</Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Threat Zones:</span>
-                  <Badge variant="destructive">{stats.threats}</Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Annotations:</span>
-                  <Badge variant="default">{stats.annotations}</Badge>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-card/50">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Legend</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  <span>Civilian Flight</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                  <span>Military Flight</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-cyan-500"></div>
-                  <span>Online Camera</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                  <span>Satellite</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-                  <span>Threat Zone</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                  <span>Annotation</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-          
-          <div className="lg:col-span-3">
-            <div 
-              ref={containerRef}
-              className="w-full h-[700px] rounded-lg border border-border bg-black/20 relative overflow-hidden"
-              style={{ cursor: autoRotate ? 'default' : 'grab' }}
-            >
-              {loading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
-                  <div className="text-center">
-                    <Spinner size={48} className="mx-auto mb-4 text-accent animate-spin" />
-                    <p className="text-foreground">Loading 3D Globe...</p>
-                  </div>
-                </div>
-              )}
-              
-              <div className="absolute top-4 left-4 z-10">
-                <Badge variant="default" className="bg-background/80 backdrop-blur">
-                  {useRealData ? 'Live Data' : 'Simulated Data'}
-                </Badge>
+    <div className="w-full space-y-4">
+      <Card className="border-accent/20">
+        <CardHeader className="pb-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-accent/10 border border-accent/20">
+                <Globe size={32} className="text-accent" weight="fill" />
+              </div>
+              <div className="space-y-1">
+                <CardTitle className="text-2xl tracking-tight">Unified Intelligence Globe</CardTitle>
+                <CardDescription className="text-sm">
+                  Real-time 3D visualization with live flight tracking, camera feeds, satellites, and intelligence layers
+                </CardDescription>
               </div>
             </div>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefreshData}
+                disabled={loading}
+                className="gap-2"
+              >
+                <ArrowsClockwise size={16} className={loading ? 'animate-spin' : ''} />
+                <span className="hidden sm:inline">Refresh Data</span>
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setExportDialogOpen(true)}
+                className="gap-2"
+              >
+                <FilePdf size={16} />
+                <span className="hidden sm:inline">Export PDF</span>
+              </Button>
+            </div>
           </div>
+          
+          {loading && (
+            <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-border">
+              <div className="flex items-center gap-3 mb-2">
+                <Spinner size={18} className="animate-spin text-accent" />
+                <span className="text-sm font-medium text-foreground">Loading intelligence data...</span>
+                <span className="text-sm text-muted-foreground ml-auto">{loadingProgress}%</span>
+              </div>
+              <Progress value={loadingProgress} className="h-1.5" />
+            </div>
+          )}
+        </CardHeader>
+      </Card>
+      
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+        <div className="xl:col-span-3 space-y-4">
+          <Card className="border-accent/20">
+            <CardHeader className="pb-3 border-b border-border">
+              <CardTitle className="text-base flex items-center gap-2 font-semibold">
+                <div className="p-1 rounded bg-accent/10">
+                  <Gear size={16} className="text-accent" weight="fill" />
+                </div>
+                View Controls
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-3">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                  <Label htmlFor="real-data" className="text-xs font-medium flex-1 cursor-pointer">
+                    Use Real Data
+                  </Label>
+                  <Switch
+                    id="real-data"
+                    checked={useRealData}
+                    onCheckedChange={setUseRealData}
+                  />
+                </div>
+                
+                <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                  <Label htmlFor="auto-rotate" className="text-xs font-medium flex-1 cursor-pointer">
+                    Auto Rotate Globe
+                  </Label>
+                  <Switch
+                    id="auto-rotate"
+                    checked={autoRotate}
+                    onCheckedChange={setAutoRotate}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border-accent/20">
+            <CardHeader className="pb-3 border-b border-border">
+              <CardTitle className="text-base flex items-center gap-2 font-semibold">
+                <div className="p-1 rounded bg-accent/10">
+                  <Eye size={16} className="text-accent" weight="fill" />
+                </div>
+                Data Layers
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <ScrollArea className="h-[400px] pr-3">
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                      <Airplane size={16} className="text-green-500" weight="fill" />
+                      <Label htmlFor="show-flights" className="text-sm font-medium flex-1 cursor-pointer">
+                        Flights
+                      </Label>
+                      <Badge variant="secondary" className="text-xs">{stats.totalFlights}</Badge>
+                      <Switch
+                        id="show-flights"
+                        checked={showFlights}
+                        onCheckedChange={setShowFlights}
+                      />
+                    </div>
+                    
+                    {showFlights && (
+                      <div className="ml-8 pl-4 border-l-2 border-border space-y-2">
+                        <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                          <ShieldCheck size={14} className="text-red-500" weight="fill" />
+                          <Label htmlFor="military-only" className="text-xs flex-1 cursor-pointer">
+                            Military Only
+                          </Label>
+                          <Badge variant="destructive" className="text-xs">{stats.militaryFlights}</Badge>
+                          <Switch
+                            id="military-only"
+                            checked={militaryOnly}
+                            onCheckedChange={setMilitaryOnly}
+                            className="scale-90"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                      <Video size={16} className="text-cyan-500" weight="fill" />
+                      <Label htmlFor="show-cameras" className="text-sm font-medium flex-1 cursor-pointer">
+                        Cameras
+                      </Label>
+                      <Badge variant="default" className="text-xs">{stats.activeCameras}</Badge>
+                      <Switch
+                        id="show-cameras"
+                        checked={showCameras}
+                        onCheckedChange={setShowCameras}
+                      />
+                    </div>
+                    
+                    {showCameras && (
+                      <div className="ml-8 pl-4 border-l-2 border-border space-y-2">
+                        <Select value={filterType} onValueChange={(val) => setFilterType(val as any)}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Filter by type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Types</SelectItem>
+                            <SelectItem value="webcam">Webcams</SelectItem>
+                            <SelectItem value="satellite">Satellites</SelectItem>
+                            <SelectItem value="ground">Ground</SelectItem>
+                            <SelectItem value="aerial">Aerial</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        
+                        <Select value={filterProvider} onValueChange={setFilterProvider}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Filter by provider" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Providers</SelectItem>
+                            {uniqueProviders.map(provider => (
+                              <SelectItem key={provider} value={provider}>{provider}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                    <Planet size={16} className="text-yellow-500" weight="fill" />
+                    <Label htmlFor="show-satellites" className="text-sm font-medium flex-1 cursor-pointer">
+                      Satellites
+                    </Label>
+                    <Badge variant="secondary" className="text-xs">{stats.satellites}</Badge>
+                    <Switch
+                      id="show-satellites"
+                      checked={showSatellites}
+                      onCheckedChange={setShowSatellites}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                    <CloudRain size={16} className="text-blue-400" weight="fill" />
+                    <Label htmlFor="show-weather" className="text-sm font-medium flex-1 cursor-pointer">
+                      Weather
+                    </Label>
+                    <Switch
+                      id="show-weather"
+                      checked={showWeather}
+                      onCheckedChange={setShowWeather}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                    <Warning size={16} className="text-orange-500" weight="fill" />
+                    <Label htmlFor="show-threats" className="text-sm font-medium flex-1 cursor-pointer">
+                      Threats
+                    </Label>
+                    <Badge variant="destructive" className="text-xs">{stats.threats}</Badge>
+                    <Switch
+                      id="show-threats"
+                      checked={showThreats}
+                      onCheckedChange={setShowThreats}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                    <MapPin size={16} className="text-blue-500" weight="fill" />
+                    <Label htmlFor="show-annotations" className="text-sm font-medium flex-1 cursor-pointer">
+                      Annotations
+                    </Label>
+                    <Badge variant="secondary" className="text-xs">{stats.annotations}</Badge>
+                    <Switch
+                      id="show-annotations"
+                      checked={showAnnotations}
+                      onCheckedChange={setShowAnnotations}
+                    />
+                  </div>
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+          
+          <Card className="border-accent/20">
+            <CardHeader className="pb-3 border-b border-border">
+              <CardTitle className="text-base flex items-center gap-2 font-semibold">
+                <div className="p-1 rounded bg-accent/10">
+                  <ChartBar size={16} className="text-accent" weight="fill" />
+                </div>
+                Statistics
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="space-y-3 text-xs">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 rounded-lg bg-muted/50 border border-border">
+                    <div className="text-muted-foreground mb-1">Total Flights</div>
+                    <div className="text-lg font-bold text-foreground">{stats.totalFlights}</div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-muted/50 border border-border">
+                    <div className="text-muted-foreground mb-1">Military</div>
+                    <div className="text-lg font-bold text-red-500">{stats.militaryFlights}</div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 rounded-lg bg-muted/50 border border-border">
+                    <div className="text-muted-foreground mb-1">Cameras</div>
+                    <div className="text-lg font-bold text-cyan-500">{stats.activeCameras}/{stats.totalCameras}</div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-muted/50 border border-border">
+                    <div className="text-muted-foreground mb-1">Satellites</div>
+                    <div className="text-lg font-bold text-yellow-500">{stats.satellites}</div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 rounded-lg bg-muted/50 border border-border">
+                    <div className="text-muted-foreground mb-1">Threats</div>
+                    <div className="text-lg font-bold text-orange-500">{stats.threats}</div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-muted/50 border border-border">
+                    <div className="text-muted-foreground mb-1">Annotations</div>
+                    <div className="text-lg font-bold text-blue-500">{stats.annotations}</div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border-accent/20">
+            <CardHeader className="pb-3 border-b border-border">
+              <CardTitle className="text-base flex items-center gap-2 font-semibold">
+                <div className="p-1 rounded bg-accent/10">
+                  <Target size={16} className="text-accent" weight="fill" />
+                </div>
+                Legend
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="space-y-2.5 text-xs">
+                <div className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
+                  <div className="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-500/30"></div>
+                  <span className="font-medium">Civilian Flight</span>
+                </div>
+                <div className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
+                  <div className="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-500/30"></div>
+                  <span className="font-medium">Military Flight</span>
+                </div>
+                <div className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
+                  <div className="w-3 h-3 rounded-full bg-cyan-500 shadow-lg shadow-cyan-500/30"></div>
+                  <span className="font-medium">Online Camera</span>
+                </div>
+                <div className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
+                  <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-lg shadow-yellow-500/30"></div>
+                  <span className="font-medium">Satellite</span>
+                </div>
+                <div className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
+                  <div className="w-3 h-3 rounded-full bg-orange-500 shadow-lg shadow-orange-500/30"></div>
+                  <span className="font-medium">Threat Zone</span>
+                </div>
+                <div className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
+                  <div className="w-3 h-3 rounded-full bg-blue-500 shadow-lg shadow-blue-500/30"></div>
+                  <span className="font-medium">Annotation</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      </CardContent>
+        
+        <Card className="xl:col-span-9 border-accent/20 overflow-hidden">
+          <div 
+            ref={containerRef}
+            className="w-full h-[900px] bg-gradient-to-br from-background via-background to-accent/5 relative"
+            style={{ cursor: autoRotate ? 'default' : 'grab' }}
+          >
+            {loading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/95 backdrop-blur-sm z-10">
+                <div className="text-center space-y-4">
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-24 h-24 rounded-full bg-accent/20 animate-ping"></div>
+                    </div>
+                    <Spinner size={56} className="relative mx-auto text-accent animate-spin" weight="bold" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-lg font-semibold text-foreground">Initializing Globe</p>
+                    <p className="text-sm text-muted-foreground">Loading intelligence data from live sources...</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+              <Badge 
+                variant="default" 
+                className="bg-background/90 backdrop-blur-md border border-accent/30 shadow-lg px-3 py-1.5"
+              >
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${useRealData ? 'bg-green-500' : 'bg-yellow-500'} animate-pulse`}></div>
+                  <span className="font-medium">{useRealData ? 'Live Data' : 'Simulated Data'}</span>
+                </div>
+              </Badge>
+              
+              {!loading && (
+                <Badge 
+                  variant="outline" 
+                  className="bg-background/90 backdrop-blur-md border-border shadow-lg text-xs px-2 py-1"
+                >
+                  {autoRotate ? '🔄 Auto Rotating' : '👆 Drag to Rotate'}
+                </Badge>
+              )}
+            </div>
+            
+            {!loading && (
+              <div className="absolute bottom-4 left-4 right-4 z-10">
+                <div className="bg-background/90 backdrop-blur-md border border-accent/30 rounded-lg shadow-2xl p-3">
+                  <div className="grid grid-cols-3 md:grid-cols-6 gap-3 text-center text-xs">
+                    <div className="space-y-1">
+                      <div className="text-muted-foreground">Flights</div>
+                      <div className="text-lg font-bold text-foreground">{stats.totalFlights}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-muted-foreground">Military</div>
+                      <div className="text-lg font-bold text-red-500">{stats.militaryFlights}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-muted-foreground">Cameras</div>
+                      <div className="text-lg font-bold text-cyan-500">{stats.activeCameras}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-muted-foreground">Satellites</div>
+                      <div className="text-lg font-bold text-yellow-500">{stats.satellites}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-muted-foreground">Threats</div>
+                      <div className="text-lg font-bold text-orange-500">{stats.threats}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-muted-foreground">Notes</div>
+                      <div className="text-lg font-bold text-blue-500">{stats.annotations}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
       
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
         <DialogContent className="max-w-2xl">
@@ -1686,6 +1797,6 @@ export function UnifiedGlobeMap() {
           </motion.div>
         )}
       </AnimatePresence>
-    </Card>
+    </div>
   )
 }
