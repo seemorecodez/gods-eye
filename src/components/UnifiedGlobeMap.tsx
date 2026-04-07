@@ -1286,20 +1286,10 @@ export function UnifiedGlobeMap() {
             </div>
             
             {!loading && (
-              <div className="absolute bottom-4 left-4 right-4 z-10">
-                <div className="bg-card/95 backdrop-blur-xl border-2 border-accent/40 rounded-xl shadow-2xl p-4">
+                    </div>
+                    <div className="space-y-1.5">
                   <div className="grid grid-cols-4 gap-6">
                     <div className="space-y-1.5">
-                      <div className="text-xs text-muted-foreground font-medium tracking-wide">CAMERAS</div>
-                      <div className="text-2xl font-bold text-cyan-500 tabular-nums">{stats.activeCameras}</div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="text-xs text-muted-foreground font-medium tracking-wide">SATELLITES</div>
-                      <div className="text-2xl font-bold text-yellow-500 tabular-nums">{stats.satellites}</div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="text-xs text-muted-foreground font-medium tracking-wide">THREATS</div>
-                      <div className="text-2xl font-bold text-orange-500 tabular-nums">{stats.threats}</div>
                     </div>
                     <div className="space-y-1.5">
                       <div className="text-xs text-muted-foreground font-medium tracking-wide">NOTES</div>
