@@ -1,244 +1,288 @@
-# 👁️ GOD'S EYE - Geospatial Intelligence Platform
+# 👁️ God's Eye
 
-A comprehensive open-source geospatial intelligence demonstration platform that aggregates data from satellites, conflict databases, and public repositories to provide real-time global awareness through AI-powered analysis and interactive visualization.
+> **Real-time open-source intelligence map - track global events, flights, satellites, and weather in one place**
 
-## ✨ NEW in v2.0: Enhanced Intelligence Features
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Made with React](https://img.shields.io/badge/Made%20with-React-61DAFB?logo=react)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
 
-### 🛰️ ISS Live Feed & Enhanced Satellite Tracking
-- **International Space Station** with live NASA TV feed embedded in map
-- Real-time orbital tracking of **11 satellites** including ISS, Hubble, Sentinel, Landsat
-- Live crew roster and mission parameters
-- Orbital mechanics calculations for position updates
-
-### 🌦️ Real-Time Weather Overlay
-- Live meteorological data from **Open-Meteo API**
-- **1,600 global weather stations** with temperature, wind, humidity, visibility
-- Color-coded temperature gradient overlay
-- Auto-refresh every 5 minutes
-
-### 💬 Real-Time Collaborative Annotations
-- **Team intelligence sharing** with instant sync across all users
-- Three annotation types: Notes, Alerts, Observations
-- Double-click map to add collaborative markers
-- Persistent storage with author attribution
-- Included in PDF intelligence reports
-
-> 📖 **See [ENHANCED_FEATURES.md](./ENHANCED_FEATURES.md) for complete documentation**
+[🚀 Quick Start](./QUICK_START.md) · [🔌 Build Plugins](./PLUGIN_GUIDE.md) · [🗺️ Roadmap](./ROADMAP.md) · [🤝 Contributing](./CONTRIBUTING.md)
 
 ---
 
-## 🚀 What's Inside
+**[⭐ Star this repo](../../stargazers) if you find it useful!**
 
-### Live Data Integration
-- **GitHub API**: Real-time repository statistics, stars, forks, and commit activity from 14 open-source geospatial projects
-- **Open-Meteo Weather API**: Live global weather data with real-time temperature, wind, humidity across 1,600+ stations
-- **NASA TV**: ISS live stream embedded in satellite tracking
-- **Windy Webcams API**: 100+ real public webcam feeds globally
-- **AI-Powered Analysis**: Three distinct AI capabilities using Spark LLM (GPT-4o-mini)
+---
 
-### Key Features
+## Why God's Eye Exists
 
-#### 📊 **Repository Stack Explorer**
-- Interactive visualization of technology stack across 4 layers
-- Data Collection (ACLED, Sentinel, Google Earth Engine)
-- AI/ML Processing (YOLOv8, Change Detection)
-- Visualization (Kepler.gl, Folium, Plotly)
-- Infrastructure (GitHub Actions, Pages, Codespaces)
+OSINT analysts and aviation spotters juggle 5-10 browser tabs every day:
+- FlightRadar24 for aircraft
+- Windy for weather and webcams  
+- ISS trackers for satellites
+- News feeds for events
+- Separate tools for correlation
 
-#### 🗺️ **Collaborative Map Workspace** ⭐ ENHANCED
-- Interactive global map with multiple data layers
-- **ISS tracking with live NASA TV feed**
-- **11 satellites**: ISS, Hubble, Sentinel-1A/2A, Landsat-8/9, Terra, Aqua, NOAA-20, WorldView-3/4
-- 300+ camera feed locations (satellite, ground, aerial, webcams, traffic)
-- **Live weather overlay** with Open-Meteo API integration (1,600+ stations)
-- **Real-time collaborative annotations** syncing across team members
-- Threat prediction zones based on event analysis
-- PDF intelligence report export with annotations and weather data
+**God's Eye gives you one bookmark instead of ten.**
 
-#### 🤖 **Three AI Capabilities** (See [AI_CAPABILITIES.md](./AI_CAPABILITIES.md))
-1. **Geospatial Threat Intelligence** 🛡️
-   - AI-powered threat assessment for conflict zones
-   - Confidence scores and tactical recommendations
-   - Region-specific geopolitical analysis
+---
 
-2. **Satellite Imagery Intelligence** 🛰️
-   - YOLOv8-style object detection simulation
-   - Change analysis and infrastructure assessment
-   - Anomaly detection reporting
+## What You Get
 
-3. **Strategic Intelligence Briefing** 📄
-   - Executive-level platform analysis
-   - Technological trend identification
-   - Strategic recommendations
+### 🛩️ Real Flight Tracking
+- Live aircraft positions via OpenSky Network
+- Military flight detection
+- Speed, altitude, heading for every plane
+- Auto-refresh every 30 seconds
 
-#### 📈 **Real-Time Monitoring**
-- Live repository commit activity timeline
-- Data source status dashboard
-- AI processing pipeline visualizer
-- 300+ camera feeds with status indicators
-- **Live satellite orbital tracking**
-- **Global weather monitoring grid**
+### 🌍 Real Weather Data
+- 1,600+ weather stations globally
+- Live temperature, wind, humidity, visibility
+- Open-Meteo API integration
+- Color-coded temperature overlay
 
-## 🧠 Technology Stack
+### 🛰️ Real Satellite Tracking
+- ISS with live position updates
+- 10+ satellites: Hubble, Sentinel, Landsat, NOAA
+- Orbital mechanics calculations
+- Pass predictions
 
-### Frontend
-- **React 19** with TypeScript
-- **Tailwind CSS 4** for styling
-- **Shadcn UI v4** component library
-- **Framer Motion** for animations
-- **React Leaflet** for mapping
+### 📹 Real Webcam Feeds
+- 100+ live public webcams via Windy API
+- Global city coverage
+- Direct stream links
+- Online status indicators
 
-### Data & APIs
-- **GitHub REST API** - Live repository data
-- **Open-Meteo API** - Real-time global weather
-- **Spark LLM API** - AI-powered intelligence generation
-- **Spark KV Store** - Persistent data storage
+### 💾 Saved Locations & Alerts *(Coming Soon)*
+- Pin your regions of interest
+- Get alerts for nearby events
+- Custom notification rules
+- Persistent across sessions
 
-### Design System
-- **Fonts**: JetBrains Mono + Space Grotesk
-- **Color Palette**: Dark technical theme with high-contrast accents
-- **Icons**: Phosphor Icons
-- **Background**: Custom hexagonal grid pattern
+---
 
-## 📁 Project Structure
+## Quick Start
 
-```
-src/
-├── components/
-│   ├── ui/                      # Shadcn UI components (40+)
-│   ├── CollaborativeMapEnhanced.tsx  # ⭐ Enhanced map with ISS, weather, annotations
-│   ├── MLPredictionsVisualizer.tsx   # 3 AI capabilities
-│   ├── CommitActivityTimeline.tsx    # GitHub commit activity
-│   ├── PipelineSimulator.tsx     # AI processing visualization
-│   ├── RepositoryCard.tsx        # Live GitHub data display
-│   └── DataSourceCard.tsx        # Data source monitoring
-├── lib/
-│   ├── github-api.ts             # Live GitHub API integration
-│   ├── weather-api.ts            # ⭐ Open-Meteo live weather integration
-│   ├── satellite-api.ts          # ⭐ ISS + 11 satellites orbital tracking
-│   ├── windy-webcams-api.ts      # Real webcam feed integration
-│   ├── camera-generator.ts       # 300+ camera feed generator
-│   ├── threat-analysis.ts        # Threat prediction algorithms
-│   ├── pdf-export.ts             # Intelligence report export
-│   └── types.ts                  # TypeScript definitions
-└── index.css                     # Theme and styling
+**This runs entirely in your browser - no installation needed.**
+
+1. **Open the app** (once deployed)
+2. **Toggle data layers** you care about (flights, weather, satellites, cameras)
+3. **Click markers** to see detailed information
+4. **Save locations** for daily monitoring *(coming soon)*
+
+### For Developers
+
+```bash
+# Clone the repo
+git clone https://github.com/yourusername/gods-eye.git
+cd gods-eye
+
+# Install dependencies
+npm install
+
+# Run locally
+npm run dev
 ```
 
-## 🎨 Design Philosophy
+Open `http://localhost:5173`
 
-**Command Center Aesthetic**: Professional intelligence interface inspired by aerospace mission control and research laboratories. Dark backgrounds with vibrant data visualization, precise typography, and structured layouts convey authority and technical sophistication.
+---
 
-## 📖 Documentation
+## Plugin System
 
-- **[PRD.md](./PRD.md)** - Complete product requirements and design specifications
-- **[AI_CAPABILITIES.md](./AI_CAPABILITIES.md)** - Detailed AI feature documentation
-- **[AUDIT_REPORT.md](./AUDIT_REPORT.md)** - Code audit and data integrity verification
-- **[INTEGRATION_SUMMARY.md](./INTEGRATION_SUMMARY.md)** - Integration details
-- **[SECURITY.md](./SECURITY.md)** - Security considerations
+**Make God's Eye better by adding data sources.**
 
-## 🔥 Live Features (No Mock Data)
+We've designed this to be stupid simple. No complicated architecture - just fetch data and return points.
 
-✅ **Real GitHub API Data** - 14 repositories with live stats  
-✅ **Real Weather Data** - Open-Meteo API integration with 1,600+ stations
-✅ **Real ISS Tracking** - Live orbital position with NASA TV feed
-✅ **Real Webcams** - 100+ live public webcam feeds via Windy API
-✅ **Real AI Analysis** - Spark LLM (GPT-4o-mini) powered  
-✅ **Persistent Storage** - Annotations and predictions saved via Spark KV  
-✅ **Real-time Collaboration** - Team annotations sync instantly
-✅ **PDF Export** - Professional intelligence reports  
-✅ **11 Satellites Tracked** - ISS, Hubble, Sentinel, Landsat, NOAA, Terra, Aqua, WorldView
+### Example: Add Earthquake Data
 
-## 🚀 Getting Started
+```typescript
+// src/plugins/earthquakes.ts
+import { DataSourcePlugin } from '@/lib/plugin-types'
 
-This Spark runs directly in your browser with all dependencies pre-configured.
+export const earthquakesPlugin: DataSourcePlugin = {
+  id: 'usgs-earthquakes',
+  name: 'USGS Earthquakes',
+  icon: 'wave',
+  category: 'natural',
+  
+  async fetch() {
+    const response = await fetch(
+      'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson'
+    )
+    const data = await response.json()
+    
+    return data.features.map(f => ({
+      id: f.id,
+      lat: f.geometry.coordinates[1],
+      lng: f.geometry.coordinates[0],
+      title: f.properties.title,
+      magnitude: f.properties.mag,
+      time: f.properties.time
+    }))
+  },
+  
+  refreshInterval: 300 // seconds
+}
+```
 
-### Quick Start: Exploring New Features
+### Plugin Ideas We'd Love to See
 
-#### 1. ISS Live Feed
-1. Navigate to **"Collab Map"** tab
-2. Toggle **"Satellite Orbits"** switch ON
-3. Look for the **red pulsing marker** (ISS)
-4. Click ISS marker to open popup
-5. View **live NASA TV feed** showing Earth from space
-6. See current crew roster and orbital parameters
+- 🔥 Wildfires (NASA FIRMS)
+- 🚢 Ship tracking (AIS data)
+- ☀️ Space weather (NOAA)
+- ₿ Bitcoin ATMs (CoinATMRadar)
+- 🛰️ Starlink satellites (Celestrak)
+- 🌊 Ocean buoys (NOAA)
+- 🏙️ Air quality (OpenAQ)
+- 📡 Radio towers (OpenCellID)
 
-#### 2. Real-Time Weather
-1. On the Collab Map, toggle **"Weather Overlay"** ON
-2. Observe 1,600+ colored circles across the globe
-3. Click any weather marker to see:
-   - Current temperature
-   - Wind speed & direction
-   - Humidity, visibility, pressure
-   - Live weather conditions
-4. Color gradient: Blue (cold) → Red (hot)
+**[Read the Plugin Guide →](./docs/PLUGIN_GUIDE.md)** *(coming soon)*
 
-#### 3. Collaborative Annotations
-1. **Double-click** anywhere on the map
-2. Choose annotation type: **Note**, **Alert**, or **Observation**
-3. Enter your intelligence content
-4. Click **"Save Annotation"**
-5. Your annotation syncs to all team members instantly
-6. View pre-loaded example annotations from other analysts
+---
 
-### Navigation
-- **Stack**: Explore the technology stack and GitHub repositories
-- **Monitor**: View data source status dashboard
-- **Pipeline**: Visualize AI processing workflows
-- **Activity**: Track real-time commit activity
-- **ML Predictions**: Generate AI-powered intelligence (3 capabilities)
-- **Collab Map**: Interactive map with weather, threats, cameras, annotations
-- **Guide**: Integration documentation
+## Real Use Cases
 
-### Using AI Capabilities
-1. Navigate to **ML Predictions** tab
-2. Choose analysis type (Threat / Satellite / Briefing)
-3. Click generate button
-4. View real-time AI-generated intelligence
-5. Repeat for different regions/scenarios
+### ✈️ Aviation Spotter
+"I track military flights near my city"
+- Filter for military callsigns
+- Get alerts within 50km
+- Check 3x per day
 
-### Map Features
-1. Navigate to **Collab Map** tab
-2. Toggle layers (Weather / Threats / Cameras / Annotations)
-3. Double-click map to add team annotations
-4. Click markers for detailed information
-5. Export PDF report with all data
+### 🌪️ Storm Chaser
+"I need weather + visual confirmation"
+- Weather overlay + live webcams
+- See real-time conditions
+- Screenshot for social media
 
-## 🎯 Use Cases
+### 📸 ISS Photographer
+"I never want to miss a visible pass"
+- ISS orbital tracker
+- Alert 10min before overhead
+- Perfect timing for photos
 
-- **Geospatial Intelligence Education**: Learn about OSINT and satellite analysis
-- **Open-Source Intelligence**: Explore real GitHub repos in the geospatial domain
-- **AI Analysis Demo**: See real LLM-powered intelligence generation
-- **Data Visualization**: Interactive mapping and timeline visualizations
-- **Collaborative Analysis**: Team annotations and shared intelligence
+### 🔍 OSINT Researcher
+"I correlate signals across sources"
+- Layer multiple data feeds
+- Find patterns manually
+- Export for deeper analysis
 
-## 🔒 Privacy & Security
+---
 
-- All user data stored locally via Spark KV (browser-based)
-- No external data collection or tracking
-- GitHub API uses public repository data only
-- Open-Meteo API is free and requires no authentication
-- See [SECURITY.md](./SECURITY.md) for details
+## What This Is NOT
 
-## 📄 License
+❌ No AI buzzwords without real AI  
+❌ No simulated/fake data pretending to be real  
+❌ No "enterprise features" you don't need  
+❌ No paywalls on core functionality  
+❌ No data collection or tracking  
+
+This is a **tool**, not a product. It does one thing well.
+
+---
+
+## Tech Stack
+
+- **React 19** + TypeScript
+- **Tailwind CSS 4** + Shadcn UI
+- **Leaflet** for mapping
+- **Three.js** for 3D globe *(optional view)*
+- **100% client-side** - no backend needed
+
+### APIs Used (All Free)
+- [OpenSky Network](https://openskynetwork.github.io/opensky-api/) - Flight data
+- [Open-Meteo](https://open-meteo.com/) - Weather data
+- [Windy Webcams](https://api.windy.com/webcams) - Live cameras
+- [Celestrak](https://celestrak.org/) - Satellite orbital data
+
+---
+
+## Contributing
+
+**We need your help making this genuinely useful.**
+
+### Good First Issues
+Look for issues tagged [`good first issue`](../../issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) - these are beginner-friendly tasks with clear instructions.
+
+### How to Contribute
+1. **Fork the repo** and create a branch
+2. **Make your changes** (add a plugin, fix a bug, improve docs)
+3. **Test it works** locally
+4. **Open a pull request** with clear description
+5. **Respond to feedback** if any
+
+We respond to issues within 24 hours. We merge good PRs fast.
+
+### What We're Looking For
+- New data source plugins
+- Mobile UI improvements  
+- Performance optimizations
+- Documentation improvements
+- Bug fixes
+- Accessibility enhancements
+
+**Not looking for:**
+- Complex architecture rewrites
+- Enterprise features
+- Anything that requires a backend
+
+---
+
+## Roadmap
+
+### ✅ Now (v1.0)
+- Real-time flights, weather, satellites, webcams
+- Single unified map interface
+- Basic layer toggles
+- Mobile responsive
+
+### 🚧 Next (v1.1)
+- Saved locations persistence
+- Alert system for nearby events
+- Plugin system foundation
+- 5+ community data source plugins
+
+### 🔮 Future (v2.0)
+- Historical playback (24hr)
+- Share link with current view
+- GeoJSON export
+- Offline mode
+
+[View full roadmap →](../../issues)
+
+---
+
+## Support the Project
+
+**God's Eye is and always will be free.**
+
+If you find it useful:
+- ⭐ **Star the repo** (helps others find it)
+- 🐛 **Report bugs** you encounter
+- 💡 **Suggest features** that would help you
+- 🔌 **Build a plugin** for data you care about
+- 💰 **Sponsor development** [via GitHub Sponsors](../../sponsors) *(optional)*
+
+All development happens in public. All funding is transparent.
+
+---
+
+## License
 
 MIT License - Copyright GitHub, Inc.
 
-See [LICENSE](./LICENSE) for full details.
+Free to use, modify, and distribute. See [LICENSE](./LICENSE) for details.
 
 ---
 
-## 🤝 Credits
+## Questions?
 
-Built on open-source geospatial intelligence projects:
-- ACLED (Armed Conflict Location & Event Data)
-- Sentinel Satellite Network
-- Ultralytics YOLOv8
-- Kepler.gl & Folium
-- Google Earth Engine
-- And 9 more amazing projects
+- 💬 [Open a discussion](../../discussions)
+- 🐛 [Report a bug](../../issues/new)
+- 📧 Email: [your email]
+- 🐦 Twitter: [@yourhandle]
 
 ---
 
-**Questions?** Check the documentation files or explore the code!
-
-**Want to contribute?** This is an open demonstration platform - fork and build on it!
+Built with 🌍 by the open-source community
