@@ -1284,21 +1284,6 @@ export function UnifiedGlobeMap() {
                 </Badge>
               )}
             </div>
-          </div>
-        </Card>
-      </div>
-      
-      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedItem?.type === 'flight' && 'Flight Details'}
-              {selectedItem?.type === 'camera' && 'Camera Feed Details'}
-              {selectedItem?.type === 'satellite' && 'Satellite Details'}
-              {selectedItem?.type === 'weather' && 'Weather Information'}
-              {selectedItem?.type === 'threat' && 'Threat Assessment'}
-              {selectedItem?.type === 'annotation' && 'Annotation'}
-            </DialogTitle>
           </DialogHeader>
           
           {selectedItem?.type === 'flight' && (
