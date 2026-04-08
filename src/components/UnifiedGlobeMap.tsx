@@ -1284,6 +1284,29 @@ export function UnifiedGlobeMap() {
                 </Badge>
               )}
             </div>
+          </div>
+        </Card>
+      </div>
+      
+      <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedItem?.type === 'flight' && `Flight ${selectedItem.data.callsign}`}
+              {selectedItem?.type === 'camera' && selectedItem.data.name}
+              {selectedItem?.type === 'satellite' && selectedItem.data.name}
+              {selectedItem?.type === 'weather' && 'Weather Data'}
+              {selectedItem?.type === 'threat' && 'Threat Assessment'}
+              {selectedItem?.type === 'annotation' && 'Annotation Details'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedItem?.type === 'flight' && 'Live flight tracking information'}
+              {selectedItem?.type === 'camera' && 'Camera feed details'}
+              {selectedItem?.type === 'satellite' && 'Satellite orbital information'}
+              {selectedItem?.type === 'weather' && 'Current weather conditions'}
+              {selectedItem?.type === 'threat' && 'Threat analysis and assessment'}
+              {selectedItem?.type === 'annotation' && 'User-created annotation'}
+            </DialogDescription>
           </DialogHeader>
           
           {selectedItem?.type === 'flight' && (
