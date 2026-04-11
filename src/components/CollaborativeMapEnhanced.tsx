@@ -3,7 +3,7 @@ import { useKV } from '@github/spark/hooks'
 import { useUrlState } from '@/hooks/useUrlState'
 import { exportGeoJSON } from '@/utils/exportGeoJSON'
 import type { ActiveLayer } from '@/utils/exportGeoJSON'
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap, useMapEvents, Rectangle } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents, Rectangle } from 'react-leaflet'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -339,6 +339,41 @@ export function CollaborativeMapEnhanced() {
   const handleGeoJSONExport = () => {
     const layers: ActiveLayer[] = []
 
+    // Always export the currently-visible map events (conflict/satellite/detection/change
+    // circles rendered on the map), regardless of which layer filter is active.
+    if (filteredEvents.length > 0) {
+      const evts = filteredEvents
+      layers.push({
+        plugin: {
+          id: 'map-events',
+          name: 'Map Events',
+          icon: 'map-pin',
+          category: 'other',
+          fetch: async () => [],
+          refreshInterval: 0,
+          toGeoJSONFeatures: () =>
+            evts.map(evt => ({
+              type: 'Feature' as const,
+              geometry: {
+                type: 'Point',
+                coordinates: [evt.lng, evt.lat],
+              },
+              properties: {
+                title: evt.title,
+                type: evt.type,
+                severity: evt.severity,
+                description: evt.description ?? null,
+                repository: evt.repository ?? null,
+                timestamp: evt.timestamp instanceof Date
+                  ? evt.timestamp.toISOString()
+                  : new Date(evt.timestamp).toISOString(),
+              },
+            })),
+        },
+        markers: [],
+      })
+    }
+
     if (showSatellites && satellitePasses.length > 0) {
       const passes = satellitePasses
       layers.push({
@@ -401,7 +436,7 @@ export function CollaborativeMapEnhanced() {
     }
 
     if (layers.length === 0) {
-      toast.info('Enable Satellite Orbits or Weather Overlay to export GeoJSON data.')
+      toast.info('No visible features to export.')
       return
     }
 
