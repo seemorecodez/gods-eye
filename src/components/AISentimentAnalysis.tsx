@@ -19,6 +19,7 @@ import {
   analyzeGitHubSentiment,
   analyzeRegionalSentiment,
   analyzeGlobalSentiment,
+  analyzeSeismicPatterns,
   calculateSentimentTrends
 } from '@/lib/ai-sentiment-analysis'
 
@@ -34,7 +35,7 @@ const REGIONS = [
   'Southeast Asia'
 ]
 
-export function AISentimentAnalysis() {
+export function AISeismicPatternAnalysis() {
   const [analyses, setAnalyses] = useKV<SentimentAnalysis[]>('ai-sentiment-analyses', [])
   const [schedules, setSchedules] = useKV<ScheduledAnalysisConfig[]>('sentiment-schedules', [])
   const [loading, setLoading] = useState(false)
@@ -96,12 +97,12 @@ export function AISentimentAnalysis() {
   const runGitHubAnalysis = async () => {
     setLoading(true)
     try {
-      const analysis = await analyzeGitHubSentiment()
+      const analysis = await analyzeSeismicPatterns()
       setAnalyses((current) => [analysis, ...(current || [])].slice(0, 20))
-      toast.success('GitHub sentiment analysis complete')
+      toast.success('Seismic pattern analysis complete')
     } catch (error) {
-      console.error('Error analyzing GitHub sentiment:', error)
-      toast.error('Failed to analyze GitHub sentiment')
+      console.error('Error analyzing seismic patterns:', error)
+      toast.error('Failed to analyze seismic patterns')
     } finally {
       setLoading(false)
     }
@@ -202,9 +203,9 @@ export function AISentimentAnalysis() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-foreground mb-2">AI SENTIMENT ANALYSIS</h2>
+        <h2 className="text-2xl font-bold text-foreground mb-2">AI SEISMIC PATTERN ANALYSIS</h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Real-time AI-powered sentiment analysis with historical trending and automated scheduling
+          Real-time AI-powered analysis of global seismic patterns using live USGS data
         </p>
 
         <Card className="bg-card border-border p-6">
@@ -234,9 +235,9 @@ export function AISentimentAnalysis() {
                   {loading ? (
                     <Spinner size={18} className="mr-2 animate-spin" />
                   ) : (
-                    <GithubLogo size={18} className="mr-2" weight="fill" />
+                    <Brain size={18} className="mr-2" weight="fill" />
                   )}
-                  Analyze GitHub
+                  Analyze Global Seismic
                 </Button>
 
                 <div className="flex gap-2">
@@ -311,13 +312,9 @@ export function AISentimentAnalysis() {
                       onChange={(e) => setScheduleInterval(parseInt(e.target.value) || 30)}
                     />
                   </div>
-                  <Button onClick={() => addSchedule('github')} variant="outline">
-                    <GithubLogo size={16} className="mr-2" />
-                    Schedule GitHub
-                  </Button>
                   <Button onClick={() => addSchedule('global')} variant="outline">
                     <Globe size={16} className="mr-2" />
-                    Schedule Global
+                    Schedule Seismic
                   </Button>
                 </div>
 

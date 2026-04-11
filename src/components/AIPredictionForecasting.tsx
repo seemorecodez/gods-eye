@@ -87,15 +87,7 @@ export function AIPredictionForecasting() {
   const runTrendForecast = async () => {
     setLoading(true)
     try {
-      const trendNames = [
-        'Cyber Attack Frequency',
-        'Military Deployment Intensity',
-        'Economic Stability Index',
-        'Social Unrest Level',
-        'Infrastructure Vulnerability'
-      ]
-      const randomTrend = trendNames[Math.floor(Math.random() * trendNames.length)]
-      const trend = await generateTrendForecast(randomTrend)
+      const trend = await generateTrendForecast('Global Seismic Activity')
       setTrends((current) => [trend, ...(current || [])].slice(0, 10))
       toast.success('Trend forecast generated')
     } catch (error) {

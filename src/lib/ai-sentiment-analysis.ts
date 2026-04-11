@@ -1,8 +1,6 @@
-import { fetchAllRepositories } from './github-api'
-
-export interface SentimentAnalysis {
+export interface SeismicPatternAnalysis {
   id: string
-  sourceType: 'github' | 'global' | 'region'
+  sourceType: 'usgs_week'
   sourceName: string
   overallSentiment: 'positive' | 'neutral' | 'negative'
   sentimentScore: number
@@ -14,6 +12,8 @@ export interface SentimentAnalysis {
   timestamp: Date
   region?: string
 }
+
+export interface SentimentAnalysis extends SeismicPatternAnalysis {}
 
 export interface SentimentTrend {
   sourceName: string
@@ -35,8 +35,8 @@ export interface ScheduledAnalysisConfig {
   nextRun?: Date
 }
 
-export function calculateSentimentTrends(analyses: SentimentAnalysis[]): SentimentTrend[] {
-  const grouped = new Map<string, SentimentAnalysis[]>()
+export function calculateSentimentTrends(analyses: SeismicPatternAnalysis[]): SentimentTrend[] {
+  const grouped = new Map<string, SeismicPatternAnalysis[]>()
   
   analyses.forEach(analysis => {
     const key = `${analysis.sourceType}-${analysis.sourceName}`
@@ -48,7 +48,7 @@ export function calculateSentimentTrends(analyses: SentimentAnalysis[]): Sentime
   
   const trends: SentimentTrend[] = []
   
-  grouped.forEach((items, key) => {
+  grouped.forEach((items) => {
     const sorted = items.sort((a, b) => 
       new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
     )
@@ -67,121 +67,85 @@ export function calculateSentimentTrends(analyses: SentimentAnalysis[]): Sentime
   return trends
 }
 
-export async function analyzeGitHubSentiment(): Promise<SentimentAnalysis> {
-  const repositories = await fetchAllRepositories()
-  
-  const repoSummary = repositories.slice(0, 10).map(repo => ({
-    name: repo.name,
-    description: repo.description,
-    stars: repo.stars,
-    language: repo.language,
-    lastUpdate: repo.lastUpdated
-  }))
-
-  const promptText = `You are an AI sentiment analyst for a geospatial intelligence platform. Analyze the following GitHub repository data and provide sentiment analysis.
-
-Repository Data:
-${JSON.stringify(repoSummary, null, 2)}
-
-Analyze the overall sentiment, emotional tone, key themes, and any areas of concern. Return your analysis as a JSON object with this exact structure:
-{
-  "overallSentiment": "positive" | "neutral" | "negative",
-  "sentimentScore": (number between -100 and 100, where -100 is extremely negative, 0 is neutral, 100 is extremely positive),
-  "emotionalTone": ["tone1", "tone2", "tone3"],
-  "keyThemes": ["theme1", "theme2", "theme3"],
-  "concernAreas": ["concern1", "concern2"],
-  "confidenceLevel": (number between 0 and 100),
-  "analysisText": "A detailed 2-3 sentence analysis of the sentiment and patterns observed"
-}`
-
-  const response = await window.spark.llm(promptText, 'gpt-4o', true)
-  const parsed = JSON.parse(response)
-
-  return {
-    id: `sentiment-${Date.now()}`,
-    sourceType: 'github',
-    sourceName: 'GitHub Repositories',
-    overallSentiment: parsed.overallSentiment,
-    sentimentScore: parsed.sentimentScore,
-    emotionalTone: parsed.emotionalTone,
-    keyThemes: parsed.keyThemes,
-    concernAreas: parsed.concernAreas,
-    confidenceLevel: parsed.confidenceLevel,
-    analysisText: parsed.analysisText,
-    timestamp: new Date()
-  }
+export async function analyzeGitHubSentiment(): Promise<SeismicPatternAnalysis> {
+  return analyzeSeismicPatterns()
 }
 
-export async function analyzeRegionalSentiment(region: string, contextData: string): Promise<SentimentAnalysis> {
-  const promptText = `You are an AI geopolitical sentiment analyst. Analyze the sentiment and emotional climate for the following region and context.
+export async function analyzeRegionalSentiment(region: string, _contextData: string): Promise<SeismicPatternAnalysis> {
+  return analyzeSeismicPatterns(region)
+}
 
-Region: ${region}
-Context Data: ${contextData}
+export async function analyzeGlobalSentiment(): Promise<SeismicPatternAnalysis> {
+  return analyzeSeismicPatterns()
+}
 
-Provide a comprehensive sentiment analysis focusing on:
-- Political climate and stability
-- Social tensions or cohesion
-- Economic sentiment
-- Security concerns
+export async function analyzeSeismicPatterns(region?: string): Promise<SeismicPatternAnalysis> {
+  let features: any[] = []
+  let fetchError: string | null = null
+
+  try {
+    const resp = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson')
+    if (!resp.ok) throw new Error(`USGS responded ${resp.status}`)
+    const data = await resp.json()
+    features = data.features ?? []
+  } catch (err) {
+    fetchError = err instanceof Error ? err.message : String(err)
+  }
+
+  let aggregatedStats: string
+
+  if (fetchError) {
+    aggregatedStats = `fetch_error: ${fetchError}`
+  } else {
+    const totalFelt = features.reduce((sum: number, f: any) => sum + (f.properties?.felt ?? 0), 0)
+    const alertLevels = features.reduce((acc: Record<string, number>, f: any) => {
+      const level = f.properties?.alert ?? 'none'
+      acc[level] = (acc[level] || 0) + 1
+      return acc
+    }, {})
+    const tsunamiCount = features.filter((f: any) => f.properties?.tsunami === 1).length
+    const magBins: Record<string, number> = {}
+    for (const f of features) {
+      const mag: number = f.properties?.mag ?? 0
+      const bin = `M${Math.floor(mag)}-${Math.floor(mag) + 1}`
+      magBins[bin] = (magBins[bin] || 0) + 1
+    }
+    const topPlaces = features
+      .filter((f: any) => f.properties?.mag >= 4.5)
+      .map((f: any) => f.properties?.place ?? 'Unknown')
+      .slice(0, 10)
+
+    aggregatedStats = JSON.stringify({
+      total_events: features.length,
+      total_felt_reports: totalFelt,
+      alert_level_distribution: alertLevels,
+      tsunami_flagged_count: tsunamiCount,
+      magnitude_histogram: magBins,
+      notable_locations: topPlaces
+    }, null, 2)
+  }
+
+  const promptText = `You are analyzing a week of global seismic activity. Data: ${aggregatedStats}. Identify: dominant activity regions, unusual patterns, escalating trends, and any correlations between magnitude and felt reports. Return structured analysis with confidence levels.
 
 Return your analysis as a JSON object with this exact structure:
 {
   "overallSentiment": "positive" | "neutral" | "negative",
-  "sentimentScore": (number between -100 and 100),
+  "sentimentScore": (number between -100 and 100, where -100 is extremely concerning, 0 is baseline, 100 is unusually calm),
   "emotionalTone": ["tone1", "tone2", "tone3"],
   "keyThemes": ["theme1", "theme2", "theme3"],
   "concernAreas": ["concern1", "concern2"],
   "confidenceLevel": (number between 0 and 100),
-  "analysisText": "A detailed 2-3 sentence analysis"
+  "analysisText": "A detailed 2-3 sentence analysis of the seismic patterns and anomalies observed"
 }`
 
   const response = await window.spark.llm(promptText, 'gpt-4o', true)
   const parsed = JSON.parse(response)
 
   return {
-    id: `sentiment-${Date.now()}`,
-    sourceType: 'region',
-    sourceName: region,
+    id: `seismic-${Date.now()}`,
+    sourceType: 'usgs_week',
+    sourceName: region ? `USGS Week — ${region}` : 'USGS Week — Global',
     region,
-    overallSentiment: parsed.overallSentiment,
-    sentimentScore: parsed.sentimentScore,
-    emotionalTone: parsed.emotionalTone,
-    keyThemes: parsed.keyThemes,
-    concernAreas: parsed.concernAreas,
-    confidenceLevel: parsed.confidenceLevel,
-    analysisText: parsed.analysisText,
-    timestamp: new Date()
-  }
-}
-
-export async function analyzeGlobalSentiment(): Promise<SentimentAnalysis> {
-  const promptText = `You are an AI global intelligence analyst. Analyze current global geopolitical sentiment based on:
-- Active conflict zones
-- Major international tensions
-- Economic indicators
-- Humanitarian concerns
-- Technology and defense developments
-
-Provide a comprehensive global sentiment analysis.
-
-Return your analysis as a JSON object with this exact structure:
-{
-  "overallSentiment": "positive" | "neutral" | "negative",
-  "sentimentScore": (number between -100 and 100),
-  "emotionalTone": ["tone1", "tone2", "tone3"],
-  "keyThemes": ["theme1", "theme2", "theme3"],
-  "concernAreas": ["concern1", "concern2"],
-  "confidenceLevel": (number between 0 and 100),
-  "analysisText": "A detailed 2-3 sentence analysis of current global sentiment"
-}`
-
-  const response = await window.spark.llm(promptText, 'gpt-4o', true)
-  const parsed = JSON.parse(response)
-
-  return {
-    id: `sentiment-${Date.now()}`,
-    sourceType: 'global',
-    sourceName: 'Global Analysis',
     overallSentiment: parsed.overallSentiment,
     sentimentScore: parsed.sentimentScore,
     emotionalTone: parsed.emotionalTone,

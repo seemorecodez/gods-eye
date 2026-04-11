@@ -36,33 +36,102 @@ export interface CorrelationNetwork {
 }
 
 const DATA_DIMENSIONS: Omit<DataDimension, 'currentValue' | 'trend'>[] = [
-  { id: 'satellite-activity', name: 'Satellite Surveillance Activity', category: 'imagery', unit: 'passes/day' },
-  { id: 'port-congestion', name: 'Port Congestion Index', category: 'economic', unit: 'index' },
-  { id: 'social-media-tension', name: 'Social Media Tension Score', category: 'social', unit: 'score' },
-  { id: 'military-movements', name: 'Military Movement Frequency', category: 'military', unit: 'events/week' },
-  { id: 'cyber-attacks', name: 'Cyber Attack Volume', category: 'cyber', unit: 'incidents/day' },
-  { id: 'food-prices', name: 'Food Price Volatility', category: 'economic', unit: 'volatility %' },
-  { id: 'drought-severity', name: 'Drought Severity Index', category: 'environmental', unit: 'index' },
-  { id: 'refugee-flow', name: 'Refugee Movement Volume', category: 'social', unit: 'persons/day' },
-  { id: 'energy-disruption', name: 'Energy Infrastructure Disruption', category: 'economic', unit: 'incidents' },
-  { id: 'internet-shutdown', name: 'Internet Shutdown Frequency', category: 'cyber', unit: 'events/month' },
-  { id: 'protest-activity', name: 'Protest Activity Level', category: 'social', unit: 'events/week' },
-  { id: 'weapons-trade', name: 'Arms Trade Volume', category: 'military', unit: 'transactions' }
+  { id: 'seismic-event-count', name: 'Seismic Event Count', category: 'environmental', unit: 'events/week' },
+  { id: 'seismic-mean-magnitude', name: 'Seismic Mean Magnitude', category: 'environmental', unit: 'magnitude' },
+  { id: 'tsunami-threat-index', name: 'Tsunami Threat Index', category: 'environmental', unit: '% events with tsunami flag' },
+  { id: 'temperature-anomaly', name: 'Temperature Anomaly Score', category: 'environmental', unit: '°C σ' },
+  { id: 'flight-density', name: 'Global Flight Density', category: 'economic', unit: 'flights tracked' },
 ]
 
-export async function generateCorrelationNetwork(selectedDimensions?: string[]): Promise<CorrelationNetwork> {
-  const dimensionCount = selectedDimensions ? selectedDimensions.length : 6 + Math.floor(Math.random() * 4)
-  
-  const dimensions: DataDimension[] = (selectedDimensions 
-    ? DATA_DIMENSIONS.filter(d => selectedDimensions.includes(d.id))
-    : DATA_DIMENSIONS.sort(() => Math.random() - 0.5).slice(0, dimensionCount)
-  ).map(d => ({
-    ...d,
-    currentValue: Math.random() * 100,
-    trend: ['up', 'down', 'stable'][Math.floor(Math.random() * 3)] as 'up' | 'down' | 'stable'
-  }))
+// Thresholds for seismic trend classification
+const SEISMIC_COUNT_HIGH = 500  // events/week above this → 'up' trend
+const SEISMIC_COUNT_LOW = 200   // events/week below this → 'down' trend
+const SEISMIC_MAG_HIGH = 3.5    // mean magnitude above this → elevated trend
+const SEISMIC_MAG_LOW = 2.5     // mean magnitude below this → quieting trend
+const SEISMIC_TSUNAMI_THRESHOLD = 1  // tsunami rate % above this → 'up' trend
+const TEMP_STDDEV_HIGH = 4.0    // °C stddev above this → elevated anomaly
+const TEMP_STDDEV_LOW = 1.5     // °C stddev below this → stable baseline
 
-  const dimensionsList = dimensions.map(d => `- ${d.name} (${d.category}): ${d.currentValue.toFixed(1)} ${d.unit}`).join('\n')
+async function fetchRealDimensionValues(): Promise<Map<string, { value: number; trend: 'up' | 'down' | 'stable' }>> {
+  const results = new Map<string, { value: number; trend: 'up' | 'down' | 'stable' }>()
+
+  // Fetch earthquake data from USGS
+  try {
+    const eqResp = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson')
+    if (!eqResp.ok) throw new Error(`USGS responded ${eqResp.status}`)
+    const eqData = await eqResp.json()
+    const features: any[] = eqData.features || []
+    const count = features.length
+    const mags = features.map((f: any) => f.properties?.mag ?? 0).filter((m: number) => m > 0)
+    const meanMag = mags.length > 0 ? mags.reduce((a: number, b: number) => a + b, 0) / mags.length : 0
+    const tsunamiRate = features.length > 0
+      ? (features.filter((f: any) => f.properties?.tsunami === 1).length / features.length) * 100
+      : 0
+    results.set('seismic-event-count', { value: count, trend: count > SEISMIC_COUNT_HIGH ? 'up' : count < SEISMIC_COUNT_LOW ? 'down' : 'stable' })
+    results.set('seismic-mean-magnitude', { value: parseFloat(meanMag.toFixed(2)), trend: meanMag > SEISMIC_MAG_HIGH ? 'up' : meanMag < SEISMIC_MAG_LOW ? 'down' : 'stable' })
+    results.set('tsunami-threat-index', { value: parseFloat(tsunamiRate.toFixed(3)), trend: tsunamiRate > SEISMIC_TSUNAMI_THRESHOLD ? 'up' : 'stable' })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    results.set('seismic-event-count', { value: -1, trend: 'stable' })
+    results.set('seismic-mean-magnitude', { value: -1, trend: 'stable' })
+    results.set('tsunami-threat-index', { value: -1, trend: 'stable' })
+    console.error('fetch_error: USGS week feed:', msg)
+  }
+
+  // Fetch weather anomaly from Open-Meteo (equatorial sample point)
+  try {
+    const wxResp = await fetch('https://api.open-meteo.com/v1/forecast?latitude=0&longitude=0&hourly=temperature_2m&forecast_days=1')
+    if (!wxResp.ok) throw new Error(`Open-Meteo responded ${wxResp.status}`)
+    const wxData = await wxResp.json()
+    const temps: number[] = wxData.hourly?.temperature_2m ?? []
+    if (temps.length === 0) throw new Error('No temperature data returned')
+    const mean = temps.reduce((a, b) => a + b, 0) / temps.length
+    const variance = temps.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / temps.length
+    const stddev = parseFloat(Math.sqrt(variance).toFixed(2))
+    results.set('temperature-anomaly', { value: stddev, trend: stddev > TEMP_STDDEV_HIGH ? 'up' : stddev < TEMP_STDDEV_LOW ? 'down' : 'stable' })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    results.set('temperature-anomaly', { value: -1, trend: 'stable' })
+    console.error('fetch_error: Open-Meteo:', msg)
+  }
+
+  // Flight density from OpenSky (best-effort, no auth required for rough counts)
+  try {
+    const flightResp = await fetch('https://opensky-network.org/api/states/all?lamin=-10&lomin=-10&lamax=10&lomax=10')
+    if (!flightResp.ok) throw new Error(`OpenSky responded ${flightResp.status}`)
+    const flightData = await flightResp.json()
+    const flightCount: number = (flightData.states ?? []).length
+    results.set('flight-density', { value: flightCount, trend: 'stable' })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    results.set('flight-density', { value: -1, trend: 'stable' })
+    console.error('fetch_error: OpenSky flight density:', msg)
+  }
+
+  return results
+}
+
+export async function generateCorrelationNetwork(selectedDimensions?: string[]): Promise<CorrelationNetwork> {
+  const realValues = await fetchRealDimensionValues()
+
+  const dimensionPool = selectedDimensions
+    ? DATA_DIMENSIONS.filter(d => selectedDimensions.includes(d.id))
+    : DATA_DIMENSIONS
+
+  const dimensions: DataDimension[] = dimensionPool.map(d => {
+    const real = realValues.get(d.id)
+    const value = real?.value ?? -1
+    const trend = real?.trend ?? 'stable'
+    return { ...d, currentValue: value, trend }
+  })
+
+  const dimensionCount = dimensions.length
+
+  const dimensionsList = dimensions.map(d =>
+    d.currentValue === -1
+      ? `- ${d.name} (${d.category}): unavailable`
+      : `- ${d.name} (${d.category}): ${d.currentValue} ${d.unit}`
+  ).join('\n')
 
   const promptText = `You are an AI correlation analyst detecting patterns across multiple intelligence dimensions. Analyze the relationships between these data dimensions:
 

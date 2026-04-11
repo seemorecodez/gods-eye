@@ -20,7 +20,7 @@ import { RoleManagementPanel } from '@/components/RoleManagementPanel'
 import { HolographicGlobe } from '@/components/HolographicGlobe'
 import { NotificationPanel } from '@/components/NotificationPanel'
 import { AuditLogViewer } from '@/components/AuditLogViewer'
-import { AISentimentAnalysis } from '@/components/AISentimentAnalysis'
+import { AISeismicPatternAnalysis } from '@/components/AISentimentAnalysis'
 import { AIPredictionForecasting } from '@/components/AIPredictionForecasting'
 import { AICorrelationVisualization } from '@/components/AICorrelationVisualization'
 import { AIStreamingThreatMonitor } from '@/components/AIStreamingThreatMonitor'
@@ -412,7 +412,7 @@ function App() {
           </TabsContent>
 
           <TabsContent value="ai-sentiment" className="space-y-6">
-            <AISentimentAnalysis />
+            <AISeismicPatternAnalysis />
           </TabsContent>
 
           <TabsContent value="ai-forecasting" className="space-y-6">

@@ -1,6 +1,9 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { useKV } from '@github/spark/hooks'
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap, useMapEvents, Rectangle } from 'react-leaflet'
+import { useUrlState } from '@/hooks/useUrlState'
+import { exportGeoJSON } from '@/utils/exportGeoJSON'
+import type { ActiveLayer } from '@/utils/exportGeoJSON'
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents, Rectangle } from 'react-leaflet'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -18,7 +21,7 @@ import { fetchSatellitePasses, generateSatelliteImageryFeeds, SatellitePass, get
 import { generateWeatherGrid } from '@/lib/weather-api'
 import { generateThreatPredictions } from '@/lib/threat-analysis'
 import { generatePDFReport } from '@/lib/pdf-export'
-import { MapPin, Target, Crosshair, ChartLine, ChatCircle, Video, Eye, PushPin, X, CloudRain, Warning, FilePdf, Spinner, Funnel, Planet, Car, Rocket } from '@phosphor-icons/react'
+import { MapPin, Target, Crosshair, ChartLine, ChatCircle, Video, Eye, PushPin, X, CloudRain, Warning, FilePdf, Spinner, Funnel, Planet, Car, Rocket, Download } from '@phosphor-icons/react'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -38,11 +41,62 @@ interface RepoActivity {
   activity: number
 }
 
-function MapUpdater({ center }: { center: [number, number] }) {
-  const map = useMap()
+/**
+ * Applies programmatic center/zoom changes coming from URL state, and emits
+ * user-initiated pan/zoom events back to the URL — guarded by a ref flag to
+ * prevent circular updates.
+ */
+function MapCenterSync({
+  center,
+  zoom,
+  onUserChange,
+}: {
+  center: [number, number]
+  zoom: number
+  onUserChange: (lat: number, lng: number, zoom: number) => void
+}) {
+  const programmaticRef = useRef(false)
+  const map = useMapEvents({
+    zoomend() {
+      if (programmaticRef.current) return
+      const c = map.getCenter()
+      onUserChange(
+        parseFloat(c.lat.toFixed(4)),
+        parseFloat(c.lng.toFixed(4)),
+        map.getZoom(),
+      )
+    },
+    moveend() {
+      if (programmaticRef.current) {
+        // clear flag after the programmatic move settles
+        programmaticRef.current = false
+        return
+      }
+      const c = map.getCenter()
+      onUserChange(
+        parseFloat(c.lat.toFixed(4)),
+        parseFloat(c.lng.toFixed(4)),
+        map.getZoom(),
+      )
+    },
+  })
+
   useEffect(() => {
-    map.setView(center, map.getZoom())
-  }, [center, map])
+    const c = map.getCenter()
+    const movedFar =
+      Math.abs(c.lat - center[0]) > 0.0001 ||
+      Math.abs(c.lng - center[1]) > 0.0001 ||
+      map.getZoom() !== zoom
+    if (movedFar) {
+      programmaticRef.current = true
+      map.setView(center, zoom, { animate: false })
+    }
+  // `map` is a stable Leaflet instance that never changes identity; including it
+  // would trigger the effect on every render.  Primitive coordinate values are
+  // listed explicitly so the effect re-runs only when the viewport actually changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [center[0], center[1], zoom])
+
   return null
 }
 
@@ -65,16 +119,38 @@ export function CollaborativeMapEnhanced() {
   const [threatPredictions, setThreatPredictions] = useState<ThreatPrediction[]>([])
   const [mlPredictions, setMLPredictions] = useKV<MLPrediction[]>("ml-predictions", [])
   
-  const [activeLayer, setActiveLayer] = useState<'all' | 'conflict' | 'satellite' | 'detection' | 'cameras' | 'traffic'>('all')
-  const [mapCenter, setMapCenter] = useState<[number, number]>([20, 0])
+  // ---- URL-backed state (layers, lat, lng, zoom, panel) -----------------
+  const [urlState, setUrlState] = useUrlState({
+    layers: [],
+    lat: 20,
+    lng: 0,
+    zoom: 2,
+    panel: 'all',
+  })
+
+  // Derived viewport values
+  const mapCenter: [number, number] = [urlState.lat, urlState.lng]
+  const activeLayer = (urlState.panel || 'all') as 'all' | 'conflict' | 'satellite' | 'detection' | 'cameras' | 'traffic'
+
+  // Derived visibility flags — driven by the 'layers' URL param so that
+  // /?layers=cameras,weather,satellites reflects the correct toggles on load.
+  const activeLayers = new Set(urlState.layers)
+  const showAnnotations = activeLayers.has('annotations')
+  const showCameras = activeLayers.has('cameras')
+  const showSatellites = activeLayers.has('satellites')
+  const showWeather = activeLayers.has('weather')
+  const showThreats = activeLayers.has('threats')
+
+  const toggleLayer = (id: string) =>
+    setUrlState({
+      layers: activeLayers.has(id)
+        ? urlState.layers.filter(l => l !== id)
+        : [...urlState.layers, id],
+    })
+  // -----------------------------------------------------------------------
+
   const [loading, setLoading] = useState(true)
   const [loadingProgress, setLoadingProgress] = useState(0)
-  
-  const [showAnnotations, setShowAnnotations] = useState(true)
-  const [showCameras, setShowCameras] = useState(true)
-  const [showSatellites, setShowSatellites] = useState(false)
-  const [showWeather, setShowWeather] = useState(false)
-  const [showThreats, setShowThreats] = useState(false)
   
   const [filterRegion, setFilterRegion] = useState<string>('')
   const [filterProvider, setFilterProvider] = useState<string>('all')
@@ -260,6 +336,114 @@ export function CollaborativeMapEnhanced() {
     }
   }
 
+  const handleGeoJSONExport = () => {
+    const layers: ActiveLayer[] = []
+
+    // Always export the currently-visible map events (conflict/satellite/detection/change
+    // circles rendered on the map), regardless of which layer filter is active.
+    if (filteredEvents.length > 0) {
+      const evts = filteredEvents
+      layers.push({
+        plugin: {
+          id: 'map-events',
+          name: 'Map Events',
+          icon: 'map-pin',
+          category: 'other',
+          fetch: async () => [],
+          refreshInterval: 0,
+          toGeoJSONFeatures: () =>
+            evts.map(evt => ({
+              type: 'Feature' as const,
+              geometry: {
+                type: 'Point',
+                coordinates: [evt.lng, evt.lat],
+              },
+              properties: {
+                title: evt.title,
+                type: evt.type,
+                severity: evt.severity,
+                description: evt.description ?? null,
+                repository: evt.repository ?? null,
+                timestamp: evt.timestamp instanceof Date
+                  ? evt.timestamp.toISOString()
+                  : new Date(evt.timestamp).toISOString(),
+              },
+            })),
+        },
+        markers: [],
+      })
+    }
+
+    if (showSatellites && satellitePasses.length > 0) {
+      const passes = satellitePasses
+      layers.push({
+        plugin: {
+          id: 'satellites',
+          name: 'Satellite Passes',
+          icon: 'planet',
+          category: 'space',
+          fetch: async () => [],
+          refreshInterval: 600,
+          toGeoJSONFeatures: () =>
+            passes.map(sat => ({
+              type: 'Feature' as const,
+              geometry: {
+                type: 'Point',
+                coordinates: [sat.lng, sat.lat, sat.altitude],
+              },
+              properties: {
+                name: sat.name,
+                id: sat.noradId || sat.id,
+                altitude: sat.altitude,
+                velocity: sat.velocity,
+              },
+            })),
+        },
+        markers: [],
+      })
+    }
+
+    if (showWeather && weatherData.length > 0) {
+      const wx = weatherData
+      layers.push({
+        plugin: {
+          id: 'weather',
+          name: 'Weather Data',
+          icon: 'cloud-rain',
+          category: 'other',
+          fetch: async () => [],
+          refreshInterval: 1800,
+          toGeoJSONFeatures: () =>
+            wx.map(w => ({
+              type: 'Feature' as const,
+              geometry: {
+                type: 'Point',
+                coordinates: [w.lng, w.lat],
+              },
+              properties: {
+                temperature: w.temperature,
+                precipitation: w.humidity,
+                windspeed: w.windSpeed,
+                timestamp: (w.timestamp instanceof Date
+                  ? w.timestamp
+                  : new Date(w.timestamp)
+                ).toISOString(),
+              },
+            })),
+        },
+        markers: [],
+      })
+    }
+
+    if (layers.length === 0) {
+      toast.info('No visible features to export.')
+      return
+    }
+
+    exportGeoJSON(layers)
+    toast.success('GeoJSON download started')
+  }
+
   const filteredEvents = events.filter(event => 
     activeLayer === 'all' || activeLayer === 'cameras' || activeLayer === 'traffic' || event.type === activeLayer
   )
@@ -332,14 +516,14 @@ export function CollaborativeMapEnhanced() {
         <Button
           size="sm"
           variant={activeLayer === 'all' ? 'default' : 'outline'}
-          onClick={() => setActiveLayer('all')}
+          onClick={() => setUrlState({ panel: 'all' })}
         >
           All Layers ({events.length})
         </Button>
         <Button
           size="sm"
           variant={activeLayer === 'conflict' ? 'default' : 'outline'}
-          onClick={() => setActiveLayer('conflict')}
+          onClick={() => setUrlState({ panel: 'conflict' })}
         >
           <Target size={16} className="mr-2" />
           Conflict ({events.filter(e => e.type === 'conflict').length})
@@ -347,7 +531,7 @@ export function CollaborativeMapEnhanced() {
         <Button
           size="sm"
           variant={activeLayer === 'satellite' ? 'default' : 'outline'}
-          onClick={() => setActiveLayer('satellite')}
+          onClick={() => setUrlState({ panel: 'satellite' })}
         >
           <MapPin size={16} className="mr-2" />
           Satellite ({events.filter(e => e.type === 'satellite').length})
@@ -355,7 +539,7 @@ export function CollaborativeMapEnhanced() {
         <Button
           size="sm"
           variant={activeLayer === 'detection' ? 'default' : 'outline'}
-          onClick={() => setActiveLayer('detection')}
+          onClick={() => setUrlState({ panel: 'detection' })}
         >
           <Crosshair size={16} className="mr-2" />
           AI ({events.filter(e => e.type === 'detection').length})
@@ -363,7 +547,7 @@ export function CollaborativeMapEnhanced() {
         <Button
           size="sm"
           variant={activeLayer === 'cameras' ? 'default' : 'outline'}
-          onClick={() => setActiveLayer('cameras')}
+          onClick={() => setUrlState({ panel: 'cameras' })}
         >
           <Video size={16} className="mr-2" />
           Webcams ({webcamCount})
@@ -371,12 +555,20 @@ export function CollaborativeMapEnhanced() {
         <Button
           size="sm"
           variant={activeLayer === 'traffic' ? 'default' : 'outline'}
-          onClick={() => setActiveLayer('traffic')}
+          onClick={() => setUrlState({ panel: 'traffic' })}
         >
           <Car size={16} className="mr-2" />
           Traffic ({trafficCount})
         </Button>
         <div className="flex items-center gap-2 ml-auto">
+          <Button
+            size="sm"
+            variant="outline"
+            title="Export visible layers as GeoJSON"
+            onClick={handleGeoJSONExport}
+          >
+            <Download size={16} />
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -441,35 +633,35 @@ export function CollaborativeMapEnhanced() {
 
       <div className="flex items-center gap-6 flex-wrap bg-card/50 p-3 rounded border border-border">
         <div className="flex items-center gap-2">
-          <Switch checked={showAnnotations} onCheckedChange={setShowAnnotations} />
+          <Switch checked={showAnnotations} onCheckedChange={() => toggleLayer('annotations')} />
           <label className="text-sm flex items-center gap-1">
             <ChatCircle size={16} />
             Annotations ({annotationCount})
           </label>
         </div>
         <div className="flex items-center gap-2">
-          <Switch checked={showCameras} onCheckedChange={setShowCameras} />
+          <Switch checked={showCameras} onCheckedChange={() => toggleLayer('cameras')} />
           <label className="text-sm flex items-center gap-1">
             <Eye size={16} />
             Camera Feeds ({filteredCameras.length})
           </label>
         </div>
         <div className="flex items-center gap-2">
-          <Switch checked={showSatellites} onCheckedChange={setShowSatellites} />
+          <Switch checked={showSatellites} onCheckedChange={() => toggleLayer('satellites')} />
           <label className="text-sm flex items-center gap-1">
             <Planet size={16} />
             Satellite Orbits ({satellitePasses.length + (issData ? 1 : 0)})
           </label>
         </div>
         <div className="flex items-center gap-2">
-          <Switch checked={showWeather} onCheckedChange={setShowWeather} />
+          <Switch checked={showWeather} onCheckedChange={() => toggleLayer('weather')} />
           <label className="text-sm flex items-center gap-1">
             <CloudRain size={16} />
             Weather Overlay ({weatherData.length} points)
           </label>
         </div>
         <div className="flex items-center gap-2">
-          <Switch checked={showThreats} onCheckedChange={setShowThreats} />
+          <Switch checked={showThreats} onCheckedChange={() => toggleLayer('threats')} />
           <label className="text-sm flex items-center gap-1">
             <Warning size={16} />
             Threat Analysis ({filteredThreats.length} zones)
@@ -490,12 +682,16 @@ export function CollaborativeMapEnhanced() {
         ) : (
           <MapContainer
             center={mapCenter}
-            zoom={2}
+            zoom={urlState.zoom}
             style={{ height: '600px', width: '100%' }}
             className="z-0"
             doubleClickZoom={false}
           >
-            <MapUpdater center={mapCenter} />
+            <MapCenterSync
+              center={mapCenter}
+              zoom={urlState.zoom}
+              onUserChange={(lat, lng, zoom) => setUrlState({ lat, lng, zoom })}
+            />
             <AddAnnotationHandler onAddAnnotation={handleAddAnnotation} />
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
