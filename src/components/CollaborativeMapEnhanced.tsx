@@ -91,6 +91,9 @@ function MapCenterSync({
       programmaticRef.current = true
       map.setView(center, zoom, { animate: false })
     }
+  // `map` is a stable Leaflet instance that never changes identity; including it
+  // would trigger the effect on every render.  Primitive coordinate values are
+  // listed explicitly so the effect re-runs only when the viewport actually changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [center[0], center[1], zoom])
 

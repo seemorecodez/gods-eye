@@ -50,9 +50,10 @@ export function useUrlState(defaults: UrlState): [UrlState, (update: Partial<Url
   // Initialise from URL on first render; fall back to defaults for missing params.
   const [state, setState] = useState<UrlState>(() => parseUrlState(defaults))
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Keep a stable reference to the latest state so the popstate handler never stales.
-  const stateRef = useRef<UrlState>(state)
-  stateRef.current = state
+  // Keep a stable ref to defaults so the popstate handler never closes over a
+  // stale value even if the caller passes a fresh object on every render.
+  const defaultsRef = useRef<UrlState>(defaults)
+  defaultsRef.current = defaults
 
   const setUrlState = useCallback((update: Partial<UrlState>) => {
     setState(prev => {
@@ -69,15 +70,15 @@ export function useUrlState(defaults: UrlState): [UrlState, (update: Partial<Url
 
   useEffect(() => {
     const handlePopState = () => {
-      // Re-parse from the URL the browser just restored.
-      setState(parseUrlState(defaults))
+      // Re-parse from the URL the browser just restored, using the current defaults.
+      setState(parseUrlState(defaultsRef.current))
     }
     window.addEventListener('popstate', handlePopState)
     return () => {
       window.removeEventListener('popstate', handlePopState)
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // defaultsRef is a stable ref — the effect only needs to run once on mount.
   }, [])
 
   return [state, setUrlState]
