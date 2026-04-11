@@ -1,4 +1,9 @@
 import { DataSourcePlugin, MapMarker } from '@/lib/plugin-types'
+import type { GeoJSONFeature } from '@/utils/exportGeoJSON'
+
+// Module-level cache: populated each time fetch() completes so that
+// toGeoJSONFeatures() can be called without a second network round-trip.
+let _lastMarkers: MapMarker[] = []
 
 export const earthquakesPlugin: DataSourcePlugin = {
   id: 'usgs-earthquakes',
@@ -22,7 +27,7 @@ export const earthquakesPlugin: DataSourcePlugin = {
       
       const data = await response.json()
       
-      return data.features.map((feature: any) => ({
+      const markers: MapMarker[] = data.features.map((feature: any) => ({
         id: feature.id,
         lat: feature.geometry.coordinates[1],
         lng: feature.geometry.coordinates[0],
@@ -41,16 +46,46 @@ export const earthquakesPlugin: DataSourcePlugin = {
           felt: feature.properties.felt || 'Not reported',
           cdi: feature.properties.cdi || 'N/A',
           tsunami: feature.properties.tsunami ? 'Possible' : 'No',
-          url: feature.properties.url
+          alert: feature.properties.alert ?? null,
+          url: feature.properties.url,
+          // Raw numeric values retained for GeoJSON export
+          _depth_km: feature.geometry.coordinates[2] ?? null,
+          _mag_raw: feature.properties.mag ?? null,
+          _time_ms: feature.properties.time ?? null,
+          _tsunami_flag: feature.properties.tsunami === 1,
         },
         
         timestamp: feature.properties.time,
         expiresAt: Date.now() + (48 * 60 * 60 * 1000)
       }))
+
+      // Populate the module-level cache so toGeoJSONFeatures() works without
+      // a second network round-trip.
+      _lastMarkers = markers
+      return markers
     } catch (error) {
       console.error('Failed to fetch earthquake data:', error)
       return []
     }
+  },
+
+  toGeoJSONFeatures(): GeoJSONFeature[] {
+    return _lastMarkers.map(m => ({
+      type: 'Feature' as const,
+      geometry: {
+        type: 'Point',
+        coordinates: [m.lng, m.lat, (m.metadata?._depth_km as number) ?? 0],
+      },
+      properties: {
+        magnitude: (m.metadata?._mag_raw as number) ?? null,
+        place: m.title,
+        time: m.metadata?._time_ms
+          ? new Date(m.metadata._time_ms as number).toISOString()
+          : null,
+        tsunami: Boolean(m.metadata?._tsunami_flag),
+        alert: (m.metadata?.alert as string) ?? null,
+      },
+    }))
   },
   
   legend: [

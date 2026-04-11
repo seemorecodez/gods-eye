@@ -57,6 +57,13 @@ export interface DataSourcePlugin {
   onMarkerClick?: (marker: MapMarker) => void
   popupTemplate?: (marker: MapMarker) => string
   legend?: LegendItem[]
+
+  /**
+   * Optional GeoJSON export support.  When implemented, the plugin converts
+   * its most-recently-fetched markers into RFC 7946 Feature objects.
+   * Plugins that do not implement this method are skipped during GeoJSON export.
+   */
+  toGeoJSONFeatures?(): import('@/utils/exportGeoJSON').GeoJSONFeature[]
 }
 
 export interface PluginState {
