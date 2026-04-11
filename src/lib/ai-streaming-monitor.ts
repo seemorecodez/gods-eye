@@ -1,4 +1,3 @@
-import { fetchAllRepositories } from './github-api'
 import { threatAlertSystem } from './threat-alert-system'
 
 export interface StreamingThreatAlert {
@@ -33,35 +32,18 @@ export interface RealTimeMetrics {
   uptime: number
 }
 
+const USGS_SIGNIFICANT_HOUR_URL = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_hour.geojson'
+
 class StreamingThreatMonitor {
   private session: ThreatMonitoringSession | null = null
   private intervalId: number | null = null
   private callbacks: Array<(alert: StreamingThreatAlert) => void> = []
   private metricsCallbacks: Array<(metrics: RealTimeMetrics) => void> = []
   private alerts: StreamingThreatAlert[] = []
-  private regions = [
-    'Middle East',
-    'Eastern Europe',
-    'North Africa',
-    'Central Asia',
-    'East Asia',
-    'South Asia',
-    'Sub-Saharan Africa',
-    'Latin America',
-    'Southeast Asia'
-  ]
-  private categories: StreamingThreatAlert['category'][] = [
-    'cyber',
-    'military',
-    'social',
-    'environmental',
-    'economic'
-  ]
+  private seenEventIds = new Set<string>()
 
   async startMonitoring(
-    pollingInterval: number = 15000,
-    regionsToMonitor?: string[],
-    categoriesToMonitor?: StreamingThreatAlert['category'][]
+    pollingInterval: number = 60000,
   ): Promise<string> {
     if (this.session?.isActive) {
       throw new Error('Monitoring session already active')
@@ -73,8 +55,8 @@ class StreamingThreatMonitor {
       startTime: new Date(),
       isActive: true,
       alertsGenerated: 0,
-      regionsMonitored: regionsToMonitor || this.regions,
-      categoriesMonitored: categoriesToMonitor || this.categories
+      regionsMonitored: ['Global'],
+      categoriesMonitored: ['environmental']
     }
 
     this.intervalId = setInterval(async () => {
@@ -89,101 +71,87 @@ class StreamingThreatMonitor {
   private async performScan(): Promise<void> {
     if (!this.session?.isActive) return
 
+    let features: any[] = []
     try {
-      const repositories = await fetchAllRepositories()
-      const repoContext = repositories.slice(0, 5).map(r => 
-        `${r.name} (${r.category}): ${r.description}`
-      ).join('\n')
+      const resp = await fetch(USGS_SIGNIFICANT_HOUR_URL)
+      if (!resp.ok) throw new Error(`USGS responded ${resp.status}`)
+      const data = await resp.json()
+      features = data.features ?? []
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('fetch_error: USGS significant_hour:', msg)
+      return
+    }
 
-      const region = this.session.regionsMonitored[
-        Math.floor(Math.random() * this.session.regionsMonitored.length)
-      ]
-      const categoryIndex = Math.floor(Math.random() * this.session.categoriesMonitored.length)
-      const category = this.session.categoriesMonitored[categoryIndex] as StreamingThreatAlert['category']
+    const newEvents = features.filter((f: any) => !this.seenEventIds.has(f.id))
 
-      const alert = await this.analyzeThreats(region, category, repoContext)
-      
-      if (alert) {
+    if (newEvents.length === 0) {
+      return
+    }
+
+    for (const feature of newEvents) {
+      this.seenEventIds.add(feature.id)
+      const props = feature.properties ?? {}
+      const eventData = {
+        id: feature.id,
+        place: props.place ?? 'Unknown location',
+        mag: props.mag ?? 0,
+        depth: feature.geometry?.coordinates?.[2] ?? 0,
+        tsunami: props.tsunami ?? 0,
+        time: props.time ?? Date.now()
+      }
+
+      try {
+        const promptText = `Classify this seismic event. Fields: ${JSON.stringify(eventData)}. Return: threat_level (low/medium/high/critical), rationale (1 sentence), recommended_action (1 sentence). JSON only.`
+        const response = await window.spark.llm(promptText, 'gpt-4o-mini', true)
+        const parsed = JSON.parse(response)
+
+        const severityMap: Record<string, StreamingThreatAlert['severity']> = {
+          low: 'LOW',
+          medium: 'MODERATE',
+          high: 'HIGH',
+          critical: 'CRITICAL'
+        }
+        const severity = severityMap[(parsed.threat_level ?? 'low').toLowerCase()] ?? 'LOW'
+
+        const alert: StreamingThreatAlert = {
+          id: `threat-${feature.id}`,
+          severity,
+          category: 'environmental',
+          region: eventData.place,
+          title: `M${eventData.mag.toFixed(1)} Earthquake — ${eventData.place}`,
+          description: parsed.rationale ?? '',
+          aiConfidence: 0.9,
+          detectionMethod: 'USGS Significant Hour Feed + LLM Classification',
+          recommendedAction: parsed.recommended_action ?? '',
+          dataSource: 'USGS Earthquake Hazards Program',
+          timestamp: new Date(eventData.time)
+        }
+
         this.alerts.push(alert)
-        this.session.alertsGenerated++
-        
+        this.session!.alertsGenerated++
         this.callbacks.forEach(callback => callback(alert))
 
-        if (alert.severity === 'CRITICAL' || alert.severity === 'HIGH') {
+        if (severity === 'CRITICAL' || severity === 'HIGH') {
           await threatAlertSystem.checkAndCreateAlert(
             'CRITICAL_THREAT',
-            alert.severity,
+            severity,
             alert.title,
             alert.description,
             alert.aiConfidence,
             [alert.detectionMethod],
             alert.recommendedAction,
             'ML_PREDICTION',
-            [{ source: alert.dataSource, value: `${alert.category} threat detected in ${alert.region}` }],
+            [{ source: alert.dataSource, value: `environmental threat detected in ${alert.region}` }],
             { region: alert.region }
           )
         }
 
         const metrics = this.calculateMetrics()
         this.metricsCallbacks.forEach(callback => callback(metrics))
+      } catch (err) {
+        console.error('Error classifying seismic event:', feature.id, err)
       }
-    } catch (error) {
-      console.error('Error during threat scan:', error)
-    }
-  }
-
-  private async analyzeThreats(
-    region: string,
-    category: StreamingThreatAlert['category'],
-    repoContext: string
-  ): Promise<StreamingThreatAlert | null> {
-    const promptText = `You are an AI threat monitoring system performing real-time geospatial intelligence analysis.
-
-Region: ${region}
-Category: ${category}
-Available Intelligence Sources:
-${repoContext}
-
-Perform a threat assessment scan for this region and category. Determine if there's a detectable threat worth alerting.
-
-Return your analysis as a JSON object with this exact structure:
-{
-  "hasThreat": (boolean - true if a threat is detected, false otherwise),
-  "severity": "LOW" | "MODERATE" | "HIGH" | "CRITICAL",
-  "title": "Brief threat title (if hasT hreat is true)",
-  "description": "Detailed threat description 2-3 sentences (if hasThreat is true)",
-  "aiConfidence": (number 0-1 representing AI confidence in this assessment),
-  "detectionMethod": "Method used to detect this threat",
-  "recommendedAction": "Specific recommended action",
-  "dataSource": "Primary data source used"
-}
-
-Be realistic - not every scan should detect a threat. Only report significant threats.`
-
-    try {
-      const response = await window.spark.llm(promptText, 'gpt-4o-mini', true)
-      const parsed = JSON.parse(response)
-
-      if (!parsed.hasThreat) {
-        return null
-      }
-
-      return {
-        id: `threat-${Date.now()}`,
-        severity: parsed.severity,
-        category,
-        region,
-        title: parsed.title,
-        description: parsed.description,
-        aiConfidence: parsed.aiConfidence,
-        detectionMethod: parsed.detectionMethod,
-        recommendedAction: parsed.recommendedAction,
-        dataSource: parsed.dataSource,
-        timestamp: new Date()
-      }
-    } catch (error) {
-      console.error('Error analyzing threats:', error)
-      return null
     }
   }
 
@@ -278,6 +246,7 @@ Be realistic - not every scan should detect a threat. Only report significant th
 
   clearAlerts(): void {
     this.alerts = []
+    this.seenEventIds.clear()
     if (this.session) {
       this.session.alertsGenerated = 0
     }

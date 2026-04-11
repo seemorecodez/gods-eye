@@ -75,7 +75,7 @@ export async function generateForecast(
   category: ForecastPrediction['category'],
   region?: string
 ): Promise<ForecastPrediction> {
-  const selectedRegion = region || REGIONS[Math.floor(Math.random() * REGIONS.length)]
+  const selectedRegion = region || REGIONS[0]
   
   const repositories = await fetchAllRepositories()
   const relevantRepos = repositories.filter(r => 
@@ -129,10 +129,56 @@ Return your analysis as a JSON object with this exact structure:
   }
 }
 
+async function fetchUsgsMonthlyBuckets(): Promise<{ dailyCounts: number[]; dailyMeanMags: number[] }> {
+  const resp = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson')
+  if (!resp.ok) throw new Error(`fetch_error: USGS month feed responded ${resp.status}`)
+  const data = await resp.json()
+  const features: any[] = data.features || []
+
+  const buckets = new Map<string, number[]>()
+  for (const feature of features) {
+    const time: number = feature.properties?.time
+    const mag: number = feature.properties?.mag
+    if (!time || mag == null) continue
+    const dayKey = new Date(time).toISOString().slice(0, 10)
+    if (!buckets.has(dayKey)) buckets.set(dayKey, [])
+    buckets.get(dayKey)!.push(mag)
+  }
+
+  const sortedDays = Array.from(buckets.keys()).sort()
+  const last30 = sortedDays.slice(-30)
+
+  const dailyCounts: number[] = []
+  const dailyMeanMags: number[] = []
+  for (const day of last30) {
+    const mags = buckets.get(day)!
+    dailyCounts.push(mags.length)
+    dailyMeanMags.push(parseFloat((mags.reduce((a, b) => a + b, 0) / mags.length).toFixed(2)))
+  }
+
+  // Pad to 30 elements if fewer days of data were returned
+  while (dailyCounts.length < 30) {
+    dailyCounts.unshift(0)
+    dailyMeanMags.unshift(0)
+  }
+
+  return { dailyCounts, dailyMeanMags }
+}
+
 export async function generateTrendForecast(trendName: string, historicalData?: TimeSeriesDataPoint[]): Promise<ForecastTrend> {
-  const dataContext = historicalData 
-    ? `Historical data points: ${historicalData.length}\nRecent values: ${historicalData.slice(-5).map(d => d.value).join(', ')}`
-    : 'No historical data available - generate baseline forecast'
+  let dataContext: string
+
+  if (historicalData && historicalData.length > 0) {
+    dataContext = `Historical data points: ${historicalData.length}\nRecent values: ${historicalData.slice(-5).map(d => d.value).join(', ')}`
+  } else {
+    try {
+      const { dailyCounts, dailyMeanMags } = await fetchUsgsMonthlyBuckets()
+      dataContext = `Source: USGS all_month.geojson (real data)\nDaily event counts (30 days): ${dailyCounts.join(', ')}\nDaily mean magnitudes (30 days): ${dailyMeanMags.join(', ')}`
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      dataContext = `fetch_error: ${msg}`
+    }
+  }
 
   const promptText = `You are an AI time series forecasting analyst. Generate a trend forecast with future predictions.
 
@@ -191,7 +237,14 @@ export async function compareModels(
     { name: 'GPT-4o High Variance', temp: 0.9, approach: 'aggressive' }
   ]
 
-  const modelResults = []
+  const modelResults: Array<{
+    modelName: string
+    prediction: string
+    probability: number
+    confidence: number
+    accuracy: number
+    processingTime: number
+  }> = []
 
   for (const model of models) {
     const startTime = Date.now()
