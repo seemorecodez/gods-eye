@@ -227,6 +227,15 @@ export async function generateMultiCategoryForecasts(): Promise<ForecastPredicti
   return forecasts
 }
 
+interface ModelResult {
+  modelName: string
+  prediction: string
+  probability: number
+  confidence: number
+  accuracy: number
+  processingTime: number
+}
+
 export async function compareModels(
   category: ForecastPrediction['category'],
   region: string
@@ -237,14 +246,7 @@ export async function compareModels(
     { name: 'GPT-4o High Variance', temp: 0.9, approach: 'aggressive' }
   ]
 
-  const modelResults: Array<{
-    modelName: string
-    prediction: string
-    probability: number
-    confidence: number
-    accuracy: number
-    processingTime: number
-  }> = []
+  const modelResults: ModelResult[] = []
 
   for (const model of models) {
     const startTime = Date.now()

@@ -57,7 +57,8 @@ const SATELLITE_METADATA: SatelliteData[] = [
 ]
 
 const CELESTRAK_TLE_URL = 'https://celestrak.org/GP/query?GROUP=active&FORMAT=tle'
-const TLE_TTL_MS = 6 * 60 * 60 * 1000 // 6 hours
+const TLE_TTL_MS = 6 * 60 * 60 * 1000        // 6 hours — Celestrak updates TLE roughly daily
+const APPROX_ORBITAL_PERIOD_MS = 90 * 60 * 1000 // ~90 min per LEO orbit, used for next-pass estimation
 
 interface ParsedSatRec {
   name: string
@@ -173,7 +174,7 @@ export async function fetchSatellitePassesAsync(): Promise<SatellitePass[]> {
   for (const record of records) {
     const pos = propagatePosition(record, now)
     if (!pos) continue
-    const nextPassTime = new Date(now.getTime() + 5400000) // ~90 min later (one orbit approx)
+    const nextPassTime = new Date(now.getTime() + APPROX_ORBITAL_PERIOD_MS)
     passes.push({
       id: `pass-${record.noradId}`,
       name: record.name,
@@ -198,7 +199,7 @@ export function fetchSatellitePasses(): SatellitePass[] {
     return tleCache.records.flatMap(record => {
       const pos = propagatePosition(record, now)
       if (!pos) return []
-      const nextPassTime = new Date(now.getTime() + 5400000)
+      const nextPassTime = new Date(now.getTime() + APPROX_ORBITAL_PERIOD_MS)
       return [{
         id: `pass-${record.noradId}`,
         name: record.name,

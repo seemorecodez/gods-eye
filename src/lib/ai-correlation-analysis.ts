@@ -43,6 +43,15 @@ const DATA_DIMENSIONS: Omit<DataDimension, 'currentValue' | 'trend'>[] = [
   { id: 'flight-density', name: 'Global Flight Density', category: 'economic', unit: 'flights tracked' },
 ]
 
+// Thresholds for seismic trend classification
+const SEISMIC_COUNT_HIGH = 500  // events/week above this → 'up' trend
+const SEISMIC_COUNT_LOW = 200   // events/week below this → 'down' trend
+const SEISMIC_MAG_HIGH = 3.5    // mean magnitude above this → elevated trend
+const SEISMIC_MAG_LOW = 2.5     // mean magnitude below this → quieting trend
+const SEISMIC_TSUNAMI_THRESHOLD = 1  // tsunami rate % above this → 'up' trend
+const TEMP_STDDEV_HIGH = 4.0    // °C stddev above this → elevated anomaly
+const TEMP_STDDEV_LOW = 1.5     // °C stddev below this → stable baseline
+
 async function fetchRealDimensionValues(): Promise<Map<string, { value: number; trend: 'up' | 'down' | 'stable' }>> {
   const results = new Map<string, { value: number; trend: 'up' | 'down' | 'stable' }>()
 
@@ -58,9 +67,9 @@ async function fetchRealDimensionValues(): Promise<Map<string, { value: number; 
     const tsunamiRate = features.length > 0
       ? (features.filter((f: any) => f.properties?.tsunami === 1).length / features.length) * 100
       : 0
-    results.set('seismic-event-count', { value: count, trend: count > 500 ? 'up' : count < 200 ? 'down' : 'stable' })
-    results.set('seismic-mean-magnitude', { value: parseFloat(meanMag.toFixed(2)), trend: meanMag > 3.5 ? 'up' : meanMag < 2.5 ? 'down' : 'stable' })
-    results.set('tsunami-threat-index', { value: parseFloat(tsunamiRate.toFixed(3)), trend: tsunamiRate > 1 ? 'up' : 'stable' })
+    results.set('seismic-event-count', { value: count, trend: count > SEISMIC_COUNT_HIGH ? 'up' : count < SEISMIC_COUNT_LOW ? 'down' : 'stable' })
+    results.set('seismic-mean-magnitude', { value: parseFloat(meanMag.toFixed(2)), trend: meanMag > SEISMIC_MAG_HIGH ? 'up' : meanMag < SEISMIC_MAG_LOW ? 'down' : 'stable' })
+    results.set('tsunami-threat-index', { value: parseFloat(tsunamiRate.toFixed(3)), trend: tsunamiRate > SEISMIC_TSUNAMI_THRESHOLD ? 'up' : 'stable' })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     results.set('seismic-event-count', { value: -1, trend: 'stable' })
@@ -79,7 +88,7 @@ async function fetchRealDimensionValues(): Promise<Map<string, { value: number; 
     const mean = temps.reduce((a, b) => a + b, 0) / temps.length
     const variance = temps.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / temps.length
     const stddev = parseFloat(Math.sqrt(variance).toFixed(2))
-    results.set('temperature-anomaly', { value: stddev, trend: stddev > 4 ? 'up' : stddev < 1.5 ? 'down' : 'stable' })
+    results.set('temperature-anomaly', { value: stddev, trend: stddev > TEMP_STDDEV_HIGH ? 'up' : stddev < TEMP_STDDEV_LOW ? 'down' : 'stable' })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     results.set('temperature-anomaly', { value: -1, trend: 'stable' })
