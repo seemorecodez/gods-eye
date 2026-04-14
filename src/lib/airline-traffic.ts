@@ -37,6 +37,8 @@ export interface Flight {
   departureTime: Date | null
   arrivalTime: Date | null
   progress: number
+  /** true = sourced from OpenSky Network; false = simulated fallback */
+  isLive: boolean
 }
 
 export interface Airport {
@@ -156,19 +158,28 @@ function determineStatus(onGround: boolean, altitude: number | null): Flight['st
   return 'en-route'
 }
 
+// 10-minute response cache for OpenSky data
+let flightCacheInternal: { data: Flight[]; fetchedAt: number } | null = null
+const FLIGHT_CACHE_TTL_MS = 10 * 60 * 1000
+
 export async function fetchRealFlights(limit: number = 500): Promise<Flight[]> {
+  // Return cached data if still fresh
+  if (flightCacheInternal && Date.now() - flightCacheInternal.fetchedAt < FLIGHT_CACHE_TTL_MS) {
+    return flightCacheInternal.data
+  }
+
   try {
     const response = await fetch('https://opensky-network.org/api/states/all')
     
     if (!response.ok) {
-      console.warn('OpenSky API rate limit or error, using fallback')
+      console.warn('OpenSky API unavailable (status %d), using simulated fallback', response.status)
       return generateFlights(limit)
     }
     
     const data: OpenSkyResponse = await response.json()
     
     if (!data.states || data.states.length === 0) {
-      console.warn('No flight data available, using fallback')
+      console.warn('OpenSky returned no states, using simulated fallback')
       return generateFlights(limit)
     }
     
@@ -210,10 +221,12 @@ export async function fetchRealFlights(limit: number = 500): Promise<Flight[]> {
         lastUpdate: state.last_contact,
         departureTime: null,
         arrivalTime: null,
-        progress: 0.5
+        progress: 0.5,
+        isLive: true,
       })
     }
-    
+
+    flightCacheInternal = { data: flights, fetchedAt: Date.now() }
     return flights
   } catch (error) {
     console.error('Error fetching real flight data:', error)
@@ -296,7 +309,8 @@ export function generateFlights(count: number = 500): Flight[] {
       lastUpdate: now / 1000,
       departureTime,
       arrivalTime,
-      progress
+      progress,
+      isLive: false,
     })
   }
   

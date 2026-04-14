@@ -27,7 +27,17 @@ const WEATHER_CODE_MAP: Record<number, string> = {
   99: 'Thunderstorm with Heavy Hail'
 }
 
+// Cache weather results for 30 minutes to avoid hammering Open-Meteo
+const weatherCache = new Map<string, { data: WeatherData; fetchedAt: number }>()
+const WEATHER_CACHE_TTL_MS = 30 * 60 * 1000
+
 export async function fetchLiveWeatherData(lat: number, lng: number): Promise<WeatherData> {
+  const key = `${lat.toFixed(2)},${lng.toFixed(2)}`
+  const cached = weatherCache.get(key)
+  if (cached && Date.now() - cached.fetchedAt < WEATHER_CACHE_TTL_MS) {
+    return cached.data
+  }
+
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(2)}&longitude=${lng.toFixed(2)}&current=temperature_2m,relative_humidity_2m,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,visibility`
     
@@ -42,8 +52,8 @@ export async function fetchLiveWeatherData(lat: number, lng: number): Promise<We
     const weatherCode = current.weather_code || 0
     const conditions = WEATHER_CODE_MAP[weatherCode] || 'Unknown'
     
-    return {
-      id: `weather-${lat.toFixed(2)}-${lng.toFixed(2)}`,
+    const result: WeatherData = {
+      id: `weather-${key}`,
       lat,
       lng,
       temperature: parseFloat((current.temperature_2m || 15).toFixed(1)),
@@ -55,14 +65,17 @@ export async function fetchLiveWeatherData(lat: number, lng: number): Promise<We
       pressure: parseFloat((current.surface_pressure || 1013).toFixed(1)),
       timestamp: new Date(),
     }
+
+    weatherCache.set(key, { data: result, fetchedAt: Date.now() })
+    return result
   } catch (error) {
     console.warn(`Failed to fetch weather for ${lat}, ${lng}:`, error)
     
     return {
-      id: `weather-${lat.toFixed(2)}-${lng.toFixed(2)}`,
+      id: `weather-${key}`,
       lat,
       lng,
-      temperature: 15 + Math.random() * 20,
+      temperature: 15,
       humidity: 50,
       windSpeed: 10,
       windDirection: 0,
@@ -74,28 +87,42 @@ export async function fetchLiveWeatherData(lat: number, lng: number): Promise<We
   }
 }
 
-export async function generateWeatherGrid(gridSize: number = 10): Promise<WeatherData[]> {
+/**
+ * Fetches a grid of weather data. Requests are batched in groups of 20 to
+ * avoid overwhelming the Open-Meteo API and triggering rate limits.
+ */
+export async function generateWeatherGrid(gridSize: number = 8): Promise<WeatherData[]> {
   const weatherGrid: WeatherData[] = []
   const latStep = 180 / gridSize
   const lngStep = 360 / gridSize
   
-  const promises: Promise<WeatherData>[] = []
+  const coords: Array<[number, number]> = []
 
   for (let i = 0; i < gridSize; i++) {
     const lat = -90 + (i * latStep) + (latStep / 2)
     for (let j = 0; j < gridSize; j++) {
       const lng = -180 + (j * lngStep) + (lngStep / 2)
-      promises.push(fetchLiveWeatherData(lat, lng))
+      coords.push([lat, lng])
     }
   }
 
-  const results = await Promise.allSettled(promises)
-  
-  results.forEach((result) => {
-    if (result.status === 'fulfilled') {
-      weatherGrid.push(result.value)
+  // Process in batches of 20 to respect API rate limits
+  const BATCH_SIZE = 20
+  for (let i = 0; i < coords.length; i += BATCH_SIZE) {
+    const batch = coords.slice(i, i + BATCH_SIZE)
+    const results = await Promise.allSettled(
+      batch.map(([lat, lng]) => fetchLiveWeatherData(lat, lng))
+    )
+    results.forEach(result => {
+      if (result.status === 'fulfilled') {
+        weatherGrid.push(result.value)
+      }
+    })
+    // Small delay between batches to be a good citizen
+    if (i + BATCH_SIZE < coords.length) {
+      await new Promise(resolve => setTimeout(resolve, 200))
     }
-  })
+  }
 
   return weatherGrid
 }

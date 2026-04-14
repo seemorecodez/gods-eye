@@ -64,6 +64,8 @@ export function UnifiedGlobeMap() {
   
   const [loading, setLoading] = useState(true)
   const [loadingProgress, setLoadingProgress] = useState(0)
+  const [flightsLive, setFlightsLive] = useState<boolean | null>(null)
+  const [satellitesLive, setSatellitesLive] = useState<boolean | null>(null)
   const [useRealData, setUseRealData] = useState(true)
   const [autoRotate, setAutoRotate] = useState(true)
   const [cameraDistance, setCameraDistance] = useState(300)
@@ -130,9 +132,16 @@ export function UnifiedGlobeMap() {
         if (useRealData) {
           toast.info('Fetching live flight data from OpenSky Network...')
           flightData = await fetchRealFlights(500)
-          toast.success(`Loaded ${flightData.length} real flights`)
+          const isLive = flightData.length > 0 && flightData[0].isLive
+          setFlightsLive(isLive)
+          if (isLive) {
+            toast.success(`Loaded ${flightData.length} live flights from OpenSky`)
+          } else {
+            toast.warning(`OpenSky unavailable — showing ${flightData.length} simulated flights`)
+          }
         } else {
           flightData = generateFlights(500)
+          setFlightsLive(false)
         }
         setFlights(flightData)
         setLoadingProgress(25)
@@ -142,13 +151,16 @@ export function UnifiedGlobeMap() {
         setCameras(cameraData)
         setLoadingProgress(40)
         
-        const satelliteData = fetchSatellitePasses()
+        toast.info('Fetching satellite positions...')
+        const satelliteData = await fetchSatellitePasses()
+        const satLive = satelliteData.some(s => s.isLive)
+        setSatellitesLive(satLive)
         setSatellites(satelliteData)
         setLoadingProgress(55)
         
         if (showWeather) {
           toast.info('Fetching live weather data...')
-          const weather = await generateWeatherGrid(10)
+          const weather = await generateWeatherGrid(8)
           setWeatherData(weather)
         }
         setLoadingProgress(70)
@@ -790,11 +802,19 @@ export function UnifiedGlobeMap() {
         if (useRealData) {
           toast.info('Refreshing live flight data...')
           flightData = await fetchRealFlights(500)
+          const isLive = flightData.length > 0 && flightData[0].isLive
+          setFlightsLive(isLive)
         } else {
           flightData = generateFlights(500)
+          setFlightsLive(false)
         }
         setFlights(flightData)
-        setLoadingProgress(60)
+        setLoadingProgress(50)
+
+        const satelliteData = await fetchSatellitePasses()
+        setSatellites(satelliteData)
+        setSatellitesLive(satelliteData.some(s => s.isLive))
+        setLoadingProgress(70)
         
         const cameraData = await fetchWindyWebcams(300)
         setCameras(cameraData)
@@ -1270,10 +1290,24 @@ export function UnifiedGlobeMap() {
                 className="bg-card/95 backdrop-blur-xl border-2 border-accent/40 shadow-2xl px-4 py-2 text-sm"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className={`w-2.5 h-2.5 rounded-full ${useRealData ? 'bg-green-500' : 'bg-yellow-500'} animate-pulse shadow-lg ${useRealData ? 'shadow-green-500/50' : 'shadow-yellow-500/50'}`}></div>
-                  <span className="font-semibold tracking-wide">{useRealData ? 'LIVE DATA' : 'SIMULATED DATA'}</span>
+                  <div className={`w-2.5 h-2.5 rounded-full ${flightsLive ? 'bg-green-500 shadow-green-500/50' : flightsLive === false ? 'bg-yellow-500 shadow-yellow-500/50' : 'bg-gray-400'} animate-pulse shadow-lg`}></div>
+                  <span className="font-semibold tracking-wide">
+                    {flightsLive === null ? 'LOADING…' : flightsLive ? 'LIVE FLIGHTS' : 'SIMULATED FLIGHTS'}
+                  </span>
                 </div>
               </Badge>
+
+              {satellitesLive !== null && (
+                <Badge
+                  variant="default"
+                  className={`bg-card/95 backdrop-blur-xl border-2 shadow-2xl px-3 py-1.5 text-xs ${satellitesLive ? 'border-green-500/40' : 'border-yellow-500/40'}`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-2 h-2 rounded-full ${satellitesLive ? 'bg-green-500' : 'bg-yellow-500'} animate-pulse`}></div>
+                    <span className="font-medium">{satellitesLive ? 'ISS LIVE' : 'SAT APPROX'}</span>
+                  </div>
+                </Badge>
+              )}
               
               {!loading && (
                 <Badge 

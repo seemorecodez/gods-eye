@@ -5,8 +5,8 @@ export const dataSources: DataSource[] = [
     id: 'ds1',
     name: 'ACLED Conflict Events',
     status: 'active',
-    lastSync: '2 minutes ago',
-    recordCount: 145782,
+    lastSync: 'Pending health check',
+    recordCount: 0,
     coverageArea: 'Global',
     repository: 'blazeiburgess/acled'
   },
@@ -14,8 +14,8 @@ export const dataSources: DataSource[] = [
     id: 'ds2',
     name: 'Sentinel-2 Imagery',
     status: 'active',
-    lastSync: '5 minutes ago',
-    recordCount: 892341,
+    lastSync: 'Pending health check',
+    recordCount: 0,
     coverageArea: 'Europe, Middle East, Africa',
     repository: 'sentinelsat/sentinelsat'
   },
@@ -23,17 +23,17 @@ export const dataSources: DataSource[] = [
     id: 'ds3',
     name: 'Google Earth Engine',
     status: 'active',
-    lastSync: '1 minute ago',
-    recordCount: 2341890,
+    lastSync: 'Pending health check',
+    recordCount: 0,
     coverageArea: 'Global',
     repository: 'giswqs/geemap'
   },
   {
     id: 'ds4',
-    name: 'OSINT COVID-19 Pattern',
+    name: 'COVID-19 Surveillance Data',
     status: 'active',
-    lastSync: '3 minutes ago',
-    recordCount: 98234,
+    lastSync: 'Pending health check',
+    recordCount: 0,
     coverageArea: 'Global',
     repository: 'CSSEGISandData/COVID-19'
   },
@@ -41,8 +41,8 @@ export const dataSources: DataSource[] = [
     id: 'ds5',
     name: 'Conflict Analysis DB',
     status: 'active',
-    lastSync: '2 minutes ago',
-    recordCount: 45231,
+    lastSync: 'Pending health check',
+    recordCount: 0,
     coverageArea: 'Sub-Saharan Africa',
     repository: 'datapartnership/acled_conflict_analysis'
   }

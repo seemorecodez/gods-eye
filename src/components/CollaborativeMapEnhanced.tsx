@@ -21,15 +21,11 @@ import { generatePDFReport } from '@/lib/pdf-export'
 import { MapPin, Target, Crosshair, ChartLine, ChatCircle, Video, Eye, PushPin, X, CloudRain, Warning, FilePdf, Spinner, Funnel, Planet, Car, Rocket } from '@phosphor-icons/react'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
+import { initLeafletDefaultIcons } from '@/lib/leaflet-utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 
-delete (L.Icon.Default.prototype as any)._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png'
-})
+initLeafletDefaultIcons()
 
 interface RepoActivity {
   repo: string
@@ -160,11 +156,11 @@ export function CollaborativeMapEnhanced() {
         setSatellitePasses(satellites)
         setLoadingProgress(50)
 
-        const iss = getISSData()
+        const iss = await getISSData()
         setIssData(iss)
         setLoadingProgress(55)
 
-        const weather = await generateWeatherGrid(40)
+        const weather = await generateWeatherGrid(8)
         setWeatherData(weather)
         setLoadingProgress(70)
 

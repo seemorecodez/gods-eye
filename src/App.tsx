@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { ErrorBoundary } from 'react-error-boundary'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { Toaster } from '@/components/ui/sonner'
@@ -17,7 +18,6 @@ import { APIMonitoringDashboard } from '@/components/APIMonitoringDashboard'
 import { AdvancedDataVisualization } from '@/components/AdvancedDataVisualization'
 import { RefreshSettingsPanel } from '@/components/RefreshSettingsPanel'
 import { RoleManagementPanel } from '@/components/RoleManagementPanel'
-import { HolographicGlobe } from '@/components/HolographicGlobe'
 import { NotificationPanel } from '@/components/NotificationPanel'
 import { AuditLogViewer } from '@/components/AuditLogViewer'
 import { AISentimentAnalysis } from '@/components/AISentimentAnalysis'
@@ -32,8 +32,20 @@ import { useAuth } from '@/hooks/use-auth'
 import { useAutoRefresh } from '@/hooks/use-auto-refresh'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useNotifications } from '@/hooks/use-notifications'
-import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner, GitCommit, Brain, Network, Bell, ChartBar, User, Gear, ArrowsClockwise, ShieldCheck, ClipboardText, Warning } from '@phosphor-icons/react'
+import { Stack, Database, GitBranch, Globe, BookOpen, Eye, Spinner, GitCommit, Brain, Network, Bell, ChartBar, ArrowsClockwise, ShieldCheck, ClipboardText, Warning } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+
+function ComponentErrorFallback({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center p-8 border border-destructive/50 rounded-lg bg-destructive/5 min-h-[200px]">
+      <Warning size={32} className="text-destructive mb-3" weight="fill" />
+      <p className="text-sm font-medium text-foreground mb-1">Component failed to render</p>
+      <p className="text-xs text-muted-foreground mb-4 max-w-sm text-center">{error.message}</p>
+      <Button variant="outline" size="sm" onClick={resetErrorBoundary}>Retry</Button>
+    </div>
+  )
+}
 
 function App() {
   const [activeView, setActiveView] = useState<ViewMode>('stack')
@@ -389,7 +401,9 @@ function App() {
               <p className="text-sm text-muted-foreground mb-4">
                 Team collaboration with annotations, real-time camera feeds, and geospatial data layers
               </p>
-              <CollaborativeMap />
+              <ErrorBoundary FallbackComponent={ComponentErrorFallback}>
+                <CollaborativeMap />
+              </ErrorBoundary>
             </div>
           </TabsContent>
 
@@ -399,7 +413,9 @@ function App() {
               <p className="text-sm text-muted-foreground mb-4">
                 Interactive 3D globe combining flight tracking, camera feeds, satellites, and collaborative intelligence
               </p>
-              <UnifiedGlobeMap />
+              <ErrorBoundary FallbackComponent={ComponentErrorFallback}>
+                <UnifiedGlobeMap />
+              </ErrorBoundary>
             </div>
           </TabsContent>
 

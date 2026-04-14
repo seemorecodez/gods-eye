@@ -191,7 +191,14 @@ export async function compareModels(
     { name: 'GPT-4o High Variance', temp: 0.9, approach: 'aggressive' }
   ]
 
-  const modelResults = []
+  const modelResults: Array<{
+    modelName: string
+    prediction: string
+    probability: number
+    confidence: number
+    accuracy: number
+    processingTime: number
+  }> = []
 
   for (const model of models) {
     const startTime = Date.now()

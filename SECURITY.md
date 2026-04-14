@@ -1,31 +1,55 @@
-Thanks for helping make GitHub safe for everyone.
+# Security Policy
 
-# Security
+## Supported Versions
 
-GitHub takes the security of our software products and services seriously, including all of the open source code repositories managed through our GitHub organizations, such as [GitHub](https://github.com/GitHub).
+| Version | Supported |
+|---------|-----------|
+| 0.9.x   | ✅ Active |
 
-Even though [open source repositories are outside of the scope of our bug bounty program](https://bounty.github.com/index.html#scope) and therefore not eligible for bounty rewards, we will ensure that your finding gets passed along to the appropriate maintainers for remediation. 
+## Reporting a Vulnerability
 
-## Reporting Security Issues
+**Do not report security vulnerabilities through public GitHub issues, discussions, or pull requests.**
 
-If you believe you have found a security vulnerability in any GitHub-owned repository, please report it to us through coordinated disclosure.
+Please report security issues by emailing the maintainer directly via GitHub's private vulnerability reporting:  
+👉 **[Report a Security Vulnerability](https://github.com/seemorecodez/gods-eye/security/advisories/new)**
 
-**Please do not report security vulnerabilities through public GitHub issues, discussions, or pull requests.**
+Or, if you prefer email, use the contact address listed on the GitHub profile of the repository owner.
 
-Instead, please send an email to opensource-security[@]github.com.
+### What to Include
 
-Please include as much of the information listed below as you can to help us better understand and resolve the issue:
+- Type of issue (e.g., XSS, injection, insecure API key exposure, CORS misconfiguration)
+- Full paths of source file(s) related to the issue
+- Location of affected code (branch / commit / direct URL)
+- Steps to reproduce the issue
+- Proof-of-concept or exploit code if available
+- Potential impact and how an attacker might exploit it
 
-  * The type of issue (e.g., buffer overflow, SQL injection, or cross-site scripting)
-  * Full paths of source file(s) related to the manifestation of the issue
-  * The location of the affected source code (tag/branch/commit or direct URL)
-  * Any special configuration required to reproduce the issue
-  * Step-by-step instructions to reproduce the issue
-  * Proof-of-concept or exploit code (if possible)
-  * Impact of the issue, including how an attacker might exploit the issue
+### Scope
 
-This information will help us triage your report more quickly.
+This policy covers the God's Eye geospatial intelligence platform and all code in this repository, including:
 
-## Policy
+- Data fetching modules (`src/lib/`)
+- API integration layers
+- Authentication/session handling (`src/hooks/use-auth.ts`)
+- Plugin system (`src/plugins/`)
+- Role-based access control (`src/lib/roles.ts`)
+- AI analysis modules that process or relay intelligence data
 
-See [GitHub's Safe Harbor Policy](https://docs.github.com/en/site-policy/security-policies/github-bug-bounty-program-legal-safe-harbor#1-safe-harbor-terms)
+### Response Timeline
+
+| Stage | Target |
+|-------|--------|
+| Acknowledgement | 72 hours |
+| Initial assessment | 7 days |
+| Patch / mitigation | 30 days (critical), 90 days (moderate) |
+| Public disclosure | After patch is released |
+
+### Important Notes
+
+- This platform fetches data from public APIs (OpenSky Network, USGS, NASA FIRMS, etc.).  
+  Credentials for these services **must not** be committed to the repository.  
+  Use `.env` environment variables (`VITE_*`) for all API keys.
+- The `window.spark.llm()` AI integration operates within GitHub Spark's security sandbox.  
+  Prompt injection attacks against the AI analysis features are in scope.
+- Sensitive intelligence annotations stored via `useKV` are scoped to the authenticated  
+  GitHub Spark session — cross-user data leakage is in scope.
