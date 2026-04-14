@@ -91,7 +91,7 @@ export async function fetchLiveISSData(): Promise<ISSData> {
   try {
     const [posResponse, crewResponse] = await Promise.all([
       fetch('https://api.wheretheiss.at/v1/satellites/25544'),
-      fetch('http://api.open-notify.org/astros.json')
+      fetch('https://api.open-notify.org/astros.json')
     ])
 
     if (!posResponse.ok) throw new Error(`ISS position API: ${posResponse.status}`)

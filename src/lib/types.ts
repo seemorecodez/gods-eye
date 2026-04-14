@@ -97,6 +97,11 @@ export interface CameraFeed {
   name: string
   lat: number
   lng: number
+  /**
+   * Live stream URL for this feed.
+   * May be empty ('') for satellite-type feeds where no public unauthenticated
+   * stream endpoint is available — consumers should check before rendering.
+   */
   streamUrl: string
   embedUrl?: string
   status: 'online' | 'offline' | 'error'
